@@ -2,23 +2,23 @@
 
 @use('App\Support\Display')
 
-@section('title', 'Consumption report')
+@section('title', 'Reporte de consumo')
 
 @section('content')
-    @include('reports._header', ['title' => 'Consumption by '.$groupBy])
+    @include('reports._header', ['title' => 'Consumo por '.['company' => 'empresa', 'vehicle' => 'vehículo', 'product' => 'producto'][$groupBy] ?? $groupBy])
 
-    <p class="small">Sums of the liters and amounts stored with each purchase. Nothing is repriced: LBP and USD are what each purchase recorded at its own price and exchange rate.</p>
+    <p class="small">Sumas de los litros y montos almacenados con cada compra. Nada se recotiza: los LBP y USD son lo que cada compra registró a su propio precio y tasa de cambio.</p>
 
     @if ($rows === [])
-        <p class="text-body-secondary">No purchases in this period.</p>
+        <p class="text-body-secondary">No hay compras en este periodo.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">{{ ucfirst($groupBy) }}</th>
-                        <th scope="col" class="text-end">Purchases</th>
-                        <th scope="col" class="text-end">Liters</th>
+                        <th scope="col">{{ ['company' => 'Empresa', 'vehicle' => 'Vehículo', 'product' => 'Producto'][$groupBy] ?? ucfirst($groupBy) }}</th>
+                        <th scope="col" class="text-end">Compras</th>
+                        <th scope="col" class="text-end">Litros</th>
                         <th scope="col" class="text-end">LBP</th>
                         <th scope="col" class="text-end">USD</th>
                     </tr>
@@ -37,6 +37,7 @@
                 <tfoot>
                     <tr class="fw-semibold">
                         <th scope="row">Total</th>
+
                         <td class="text-end">{{ $totals['purchases'] }}</td>
                         <td class="text-end text-nowrap" data-total="liters">{{ Display::decimal($totals['liters']) }}</td>
                         <td class="text-end text-nowrap" data-total="amount_lbp">{{ Display::decimal($totals['amount_lbp']) }}</td>
@@ -47,8 +48,8 @@
         </div>
     @endif
 
-    <h2 class="h5 mt-4">Accounting CSV</h2>
-    <p class="small">Every purchase in the period, one row each, with the stored amounts, for the same company scope. The file's totals match the table above.</p>
+    <h2 class="h5 mt-4">CSV contable</h2>
+    <p class="small">Cada compra del periodo, una fila por compra, con los montos almacenados, para el mismo alcance de empresa. Los totales del archivo coinciden con la tabla de arriba.</p>
     <form method="GET" action="{{ route('exports.transactions') }}" class="row g-2 align-items-end">
         <input type="hidden" name="from" value="{{ $firstDay }}">
         <input type="hidden" name="to" value="{{ \Carbon\CarbonImmutable::parse($lastDay)->addDay()->format('Y-m-d') }}">
@@ -56,29 +57,29 @@
             <input type="hidden" name="company_id" value="{{ request()->integer('company_id') }}">
         @endif
         <div class="col-sm-4 col-lg-3">
-            <label for="export-card" class="form-label small mb-1">Card number (optional)</label>
+            <label for="export-card" class="form-label small mb-1">Número de tarjeta (opcional)</label>
             <input id="export-card" name="card" type="text" maxlength="40" class="form-control form-control-sm" autocomplete="off">
         </div>
         <div class="col-sm-4 col-lg-3">
-            <label for="export-station" class="form-label small mb-1">Station</label>
+            <label for="export-station" class="form-label small mb-1">Estación</label>
             <select id="export-station" name="station_id" class="form-select form-select-sm">
-                <option value="">All stations</option>
+                <option value="">Todas las estaciones</option>
                 @foreach ($stations as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>
                 @endforeach
             </select>
         </div>
         <div class="col-sm-4 col-lg-2">
-            <label for="export-product" class="form-label small mb-1">Product</label>
+            <label for="export-product" class="form-label small mb-1">Producto</label>
             <select id="export-product" name="product_code" class="form-select form-select-sm">
-                <option value="">All products</option>
+                <option value="">Todos los productos</option>
                 @foreach ($products as $code)
                     <option value="{{ $code }}">{{ $code }}</option>
                 @endforeach
             </select>
         </div>
         <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-outline-primary">Download CSV</button>
+            <button type="submit" class="btn btn-sm btn-outline-primary">Descargar CSV</button>
         </div>
     </form>
 @endsection

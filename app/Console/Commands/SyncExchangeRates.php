@@ -7,9 +7,9 @@ use Illuminate\Console\Command;
 
 class SyncExchangeRates extends Command
 {
-    protected $signature = 'rates:sync {--force : Fetch even if the provider\'s next update is not due yet}';
+    protected $signature = 'rates:sync {--force : Descarga aunque la próxima actualización del proveedor no esté vencida}';
 
-    protected $description = 'Fetch and store the latest USD/LBP observation (live provider, or a synthetic fixture in fixture mode)';
+    protected $description = 'Descarga y almacena la última observación USD/LBP (proveedor en vivo, o un fixture sintético en modo fixture)';
 
     public function handle(ExchangeRateSync $sync): int
     {

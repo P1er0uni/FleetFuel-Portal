@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Fleet;
 
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\Driver;
 use App\Models\FuelCard;
 use App\Models\Product;
@@ -12,13 +13,15 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Change a card's vehicle, driver or product restriction (only before its
- * first purchase; FuelCardService enforces that under the card lock). The
- * card's company never changes. A currently assigned record stays valid
- * even if it has been deactivated since.
+ * Change a card's vehicle, driver, product restriction or fleet (only
+ * before its first purchase; FuelCardService enforces that under the card
+ * lock). The card's company never changes. A currently assigned record
+ * stays valid even if it has been deactivated since.
  */
 class UpdateCardAssignmentRequest extends FormRequest
 {
+    use ResolvesFleet;
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -43,6 +46,7 @@ class UpdateCardAssignmentRequest extends FormRequest
                 ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $card->driver_id))],
             'allowed_product_id' => ['nullable', 'integer', Rule::exists('products', 'id')
                 ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $card->allowed_product_id))],
+            'fleet_id' => $this->fleetRules($card->company_id),
         ];
     }
 
@@ -51,11 +55,11 @@ class UpdateCardAssignmentRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'company_id.prohibited' => 'A card cannot move to another company.',
-            'vehicle_id.exists' => 'Choose an active vehicle of this company.',
-            'driver_id.exists' => 'Choose an active driver of this company.',
-            'allowed_product_id.exists' => 'Choose an active product.',
+        return $this->fleetMessages() + [
+            'company_id.prohibited' => 'Una tarjeta no puede cambiar a otra empresa.',
+            'vehicle_id.exists' => 'Elige un vehículo activo de esta empresa.',
+            'driver_id.exists' => 'Elige un conductor activo de esta empresa.',
+            'allowed_product_id.exists' => 'Elige un producto activo.',
         ];
     }
 

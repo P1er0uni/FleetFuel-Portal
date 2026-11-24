@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'phone', 'license_no'])]
+#[Fillable(['name', 'phone', 'license_no', 'fleet_id'])]
 class Driver extends Model
 {
     use BelongsToCompany;
@@ -44,6 +44,12 @@ class Driver extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<Fleet, $this> */
+    public function fleet(): BelongsTo
+    {
+        return $this->belongsTo(Fleet::class);
     }
 
     /** @return HasMany<FuelCard, $this> */

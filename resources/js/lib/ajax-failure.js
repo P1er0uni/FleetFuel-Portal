@@ -14,25 +14,25 @@ export function describeFailure(xhr) {
     const ownMessage = typeof body.code === 'string' && typeof body.message === 'string' && body.message !== '' ? body.message : null;
 
     if (status === 0) {
-        return failure('network', 'No answer from the server. Check your connection and try again.', true);
+        return failure('network', 'No hubo respuesta del servidor. Revisa tu conexión y vuelve a intentarlo.', true);
     }
 
     switch (status) {
         case 401:
         case 419:
-            return failure('session', 'Your session has expired. Sign in again to continue.', false);
+            return failure('session', 'Tu sesión ha expirado. Inicia sesión de nuevo para continuar.', false);
         case 403:
-            return failure('forbidden', ownMessage ?? 'You do not have access to this. Reload the page to see what you can do.', false);
+            return failure('forbidden', ownMessage ?? 'No tienes acceso a esto. Recarga la página para ver qué puedes hacer.', false);
         case 404:
-            return failure('not_found', 'Not found. It may no longer exist, or you no longer have access to it.', false);
+            return failure('not_found', 'No encontrado. Puede que ya no exista, o que ya no tengas acceso a él.', false);
         case 409:
-            return failure('conflict', ownMessage ?? 'This changed in the meantime.', false);
+            return failure('conflict', ownMessage ?? 'Esto cambió mientras tanto.', false);
         case 422:
-            return failure('validation', 'Check the highlighted fields.', false, errors);
+            return failure('validation', 'Revisa los campos marcados.', false, errors);
         case 429:
-            return failure('throttled', 'Too many requests. Wait a moment and try again.', true);
+            return failure('throttled', 'Demasiadas solicitudes. Espera un momento y vuelve a intentarlo.', true);
         default:
-            return failure('server', 'Something went wrong on the server. Try again in a moment.', true);
+            return failure('server', 'Algo salió mal en el servidor. Vuelve a intentarlo en un momento.', true);
     }
 }
 

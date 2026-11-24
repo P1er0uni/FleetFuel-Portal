@@ -8,4 +8,4 @@
         App\Enums\DeliveryStatus::Cancelled => 'text-bg-secondary',
     };
 @endphp
-<span class="badge {{ $deliveryBadgeClass }}">{{ ucfirst($status->label()) }}</span>
+<span class="badge {{ $deliveryBadgeClass }}">{{ ucfirst($status->displayLabel()) }}</span>

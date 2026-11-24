@@ -89,7 +89,7 @@ $(document).on('submit', 'form[data-delivery-action]', function (event) {
         .done((response) => {
             showFeedback($panel, 'success', response.message);
             reloadPanel($panel).fail(() => {
-                showFeedback($panel, 'warning', `${response.message} Reload the page to see the new status.`);
+                showFeedback($panel, 'warning', `${response.message} Recarga la página para ver el nuevo estado.`);
             });
         })
         .fail((xhr) => {
@@ -98,14 +98,14 @@ $(document).on('submit', 'form[data-delivery-action]', function (event) {
             if (xhr.status === 422 && body.errors) {
                 const allShown = showFieldErrors($form, body.errors);
                 const other = allShown ? '' : ` ${Object.values(body.errors).flat().join(' ')}`;
-                showFeedback($panel, 'danger', `Check the highlighted fields.${other}`);
+                showFeedback($panel, 'danger', `Revisa los campos marcados.${other}`);
                 restore();
 
                 return;
             }
 
             if (xhr.status === 409) {
-                showFeedback($panel, 'warning', `${body.message || 'This order changed in the meantime.'} The order below has been refreshed.`);
+                showFeedback($panel, 'warning', `${body.message || 'Esta orden cambió mientras tanto.'} La orden de abajo se ha actualizado.`);
                 reloadPanel($panel).fail(restore);
 
                 return;
@@ -116,9 +116,9 @@ $(document).on('submit', 'form[data-delivery-action]', function (event) {
             if (failure.kind === 'session') {
                 showFeedback($panel, 'danger', failure.message);
                 $($panel.data('feedback')).find('.alert')
-                    .append(' ', $('<a class="alert-link"></a>').attr('href', $panel.data('login-url')).text('Sign in again'));
+                    .append(' ', $('<a class="alert-link"></a>').attr('href', $panel.data('login-url')).text('Iniciar sesión de nuevo'));
             } else {
-                showFeedback($panel, 'danger', `The change was not saved. ${failure.message}`);
+                showFeedback($panel, 'danger', `El cambio no se guardó. ${failure.message}`);
             }
 
             restore();

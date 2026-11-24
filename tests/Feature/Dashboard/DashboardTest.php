@@ -4,6 +4,7 @@ namespace Tests\Feature\Dashboard;
 
 use App\Enums\DeliveryStatus;
 use App\Models\DeliveryOrder;
+use App\Models\Fleet;
 use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use Brick\Math\BigDecimal;
@@ -43,7 +44,7 @@ class DashboardTest extends TestCase
         $this->assertSame($this->monthTotals($atlas->id, '2026-09-01'), $page->viewData('current'));
         $this->assertSame($this->monthTotals($atlas->id, '2026-08-01'), $page->viewData('previous'));
         $this->assertSame(9, $page->viewData('current')['purchases']);
-        $page->assertSeeInOrder(['Liters this month', '515.00', 'August:'])->assertSee('Atlas Logistics');
+        $page->assertSeeInOrder(['Litros este mes', '515.00', 'agosto:'])->assertSee('Logística Atlas');
 
         // Quota warnings: Atlas cards only, with the reason; the masked number links to the card.
         $warnings = $page->viewData('quotaWarnings');
@@ -53,8 +54,8 @@ class DashboardTest extends TestCase
         }
         $blocked = $this->card('FF-ATLAS-BLOCKED');
         $page->assertSee('href="'.route('cards.show', $blocked->id).'"', false)
-            ->assertSee('••••CKED')->assertSee('Blocked: every purchase is declined.')
-            ->assertSee('••••-H02')->assertSee('Over the liter limit');
+            ->assertSee('••••CKED')->assertSee('Bloqueada: toda compra es rechazada.')
+            ->assertSee('••••-H02')->assertSee('Sobre el límite de litros');
 
         // Open deliveries: Atlas's pending, scheduled and out-for-delivery orders.
         $open = DeliveryOrder::query()->where('company_id', $atlas->id)
@@ -64,16 +65,16 @@ class DashboardTest extends TestCase
         $this->assertEqualsCanonicalizing($open, $page->viewData('openDeliveries')->pluck('id')->all());
 
         // The USD/LBP rate in use, with its provenance.
-        $page->assertSeeInOrder(['USD/LBP rate in use', '89,500.00000000 LBP per USD', 'Fixture (synthetic)'])
-            ->assertDontSee('Exchange rate status and overrides');
+        $page->assertSeeInOrder(['Tasa USD/LBP en uso', '89,500.00000000 LBP por USD', 'Fixture (sintética)'])
+            ->assertDontSee('Estado de tasas de cambio y ajustes');
 
-        $page->assertDontSee('Cedar Catering');
+        $page->assertDontSee('Catering Cedro');
     }
 
     public function test_the_other_manager_sees_none_of_atlas_and_gets_empty_states(): void
     {
         $page = $this->actingAs($this->cedarManager())->get('/dashboard')->assertOk()
-            ->assertSee('Cedar Catering')->assertDontSee('Atlas Logistics')->assertDontSee('ATL-1');
+            ->assertSee('Catering Cedro')->assertDontSee('Logística Atlas')->assertDontSee('ATL-1');
 
         $cedar = $this->cedar();
         $this->assertSame($this->monthTotals($cedar->id, '2026-09-01'), $page->viewData('current'));
@@ -83,18 +84,57 @@ class DashboardTest extends TestCase
 
         // Cedar's demo orders are delivered or cancelled: nothing is open.
         $this->assertSame(0, $page->viewData('openDeliveryCount'));
-        $page->assertSee('No delivery is pending, scheduled or on the way.');
+        $page->assertSee('Ninguna entrega está pendiente, programada o en camino.');
+
+        // No fleets yet: the widget says so instead of an empty table.
+        $page->assertSee('Todavía no hay flotas.');
+    }
+
+    /** The fleet widget (fase 1): each fleet's month against its quota, scoped to the caller. */
+    public function test_the_dashboard_shows_each_fleets_monthly_consumption_against_its_quota(): void
+    {
+        $within = Fleet::factory()->quota('500.000')->create(['company_id' => $this->atlas()->id, 'name' => 'Camiones']);
+        $over = Fleet::factory()->quota('10.000')->create(['company_id' => $this->atlas()->id, 'name' => 'Furgonetas']);
+        $noQuota = Fleet::factory()->create(['company_id' => $this->atlas()->id, 'name' => 'Pickups']);
+        // H02's seeded September usage (250 L) passes Furgonetas' 10 L quota.
+        FuelCard::query()->whereKey($this->card('FF-ATLAS-001')->id)->update(['fleet_id' => $within->id]);
+        FuelCard::query()->whereKey($this->card('FF-ATLAS-H02')->id)->update(['fleet_id' => $over->id]);
+        Fleet::factory()->create(['company_id' => $this->cedar()->id, 'name' => 'Flota Cedro']);
+
+        $page = $this->actingAs($this->atlasManager())->get('/dashboard')->assertOk();
+
+        $page->assertSee('Consumo por flota')
+            ->assertSeeInOrder(['Camiones', 'En orden'])
+            ->assertSee('Cuota excedida')
+            ->assertSee('Sin cuota de litros')
+            ->assertDontSee('Flota Cedro');
+
+        // The quota figures are each fleet's own September consumption, and a
+        // quota below it is only a signal (the badge), never a block.
+        $september = FuelTransaction::query()
+            ->where('fuel_card_id', $this->card('FF-ATLAS-001')->id)
+            ->where('quota_month', '2026-09-01')
+            ->pluck('liters')
+            ->reduce(fn (BigDecimal $total, string $liters): BigDecimal => $total->plus($liters), BigDecimal::zero())
+            ->toScale(2);
+        $quotas = $page->viewData('fleetQuotas');
+        $this->assertSame((string) $september, $quotas[$within->id]->usedL);
+        $this->assertFalse($quotas[$within->id]->exceeded());
+        $this->assertTrue($quotas[$over->id]->exceeded());
+        $this->assertSame('250.00', $quotas[$over->id]->usedL);
+        $this->assertNull($quotas[$noQuota->id]->quotaL);
+        $this->assertSame('0.00', $quotas[$noQuota->id]->usedL);
     }
 
     public function test_the_admin_sees_every_company_and_the_rate_status_link(): void
     {
         $page = $this->actingAs($this->admin())->get('/dashboard')->assertOk()
-            ->assertSee('All companies')->assertSee('Exchange rate status and overrides');
+            ->assertSee('Todas las empresas')->assertSee('Estado de tasas de cambio y ajustes');
 
         $this->assertSame($this->monthTotals(null, '2026-09-01'), $page->viewData('current'));
         $this->assertSame(2, $page->viewData('companies'));
         $companies = array_unique(array_column($page->viewData('quotaWarnings'), 'company'));
-        $this->assertContains('Atlas Logistics', $companies);
+        $this->assertContains('Logística Atlas', $companies);
     }
 
     public function test_without_a_valid_rate_the_dashboard_says_so_instead_of_inventing_one(): void
@@ -103,13 +143,13 @@ class DashboardTest extends TestCase
         $this->travelTo(CarbonImmutable::parse(self::FIXTURE_NOW)->addDays(40));
 
         $this->actingAs($this->admin())->get('/dashboard')->assertOk()
-            ->assertSee('No valid USD/LBP rate right now.')
+            ->assertSee('Ahora mismo no hay una tasa USD/LBP válida.')
             ->assertDontSee('LBP per USD</p>', false);
     }
 
     public function test_operators_have_no_dashboard(): void
     {
-        $this->actingAs($this->operator())->get('/dashboard')->assertForbidden()->assertSee('Not allowed');
+        $this->actingAs($this->operator())->get('/dashboard')->assertForbidden()->assertSee('No permitido');
     }
 
     /** N+1 check: more purchases, cards needing attention and open orders, the same number of queries. */

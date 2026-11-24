@@ -24,12 +24,12 @@ use Illuminate\Support\Facades\DB;
 class ExplainReports extends Command
 {
     protected $signature = 'reports:explain
-        {--from= : first Beirut date (Y-m-d); default: the current month}
-        {--to= : Beirut date after the last one (Y-m-d)}
-        {--company= : one company ID, as a manager sees it; default: all companies}
-        {--analyze : EXPLAIN ANALYZE (runs the read-only queries and shows real row counts and times)}';
+        {--from= : primera fecha de Beirut (Y-m-d); por defecto: el mes actual}
+        {--to= : fecha de Beirut posterior a la última (Y-m-d)}
+        {--company= : un ID de empresa, como lo ve un gerente; por defecto: todas las empresas}
+        {--analyze : EXPLAIN ANALYZE (ejecuta las consultas de solo lectura y muestra conteos y tiempos reales)}';
 
-    protected $description = 'Print the MySQL query plans of the report and CSV export queries (read-only)';
+    protected $description = 'Imprime los planes de consulta MySQL de los reportes y de la exportación CSV (solo lectura)';
 
     public function handle(ReportRepository $reports, TransactionCsvExport $export): int
     {
@@ -57,7 +57,7 @@ class ExplainReports extends Command
             'CSV export, first chunk' => fn () => iterator_to_array($export->rows($reader, $filters)),
         ];
 
-        $this->line("Range [{$from->toIso8601ZuluString()}, {$to->toIso8601ZuluString()}), company ".($company ?? 'all').', '.DB::table('fuel_transactions')->count().' ledger rows.');
+        $this->line("Rango [{$from->toIso8601ZuluString()}, {$to->toIso8601ZuluString()}), empresa ".($company ?? 'todas').', '.DB::table('fuel_transactions')->count().' filas del libro.');
 
         foreach ($queries as $label => $run) {
             foreach ($this->capture($run) as $query) {

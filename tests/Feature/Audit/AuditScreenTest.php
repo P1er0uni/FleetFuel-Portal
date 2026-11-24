@@ -61,7 +61,7 @@ class AuditScreenTest extends TestCase
         $this->assertOnly('?from=2026-09-28&to=2026-09-29',
             fn (AuditLog $entry) => $entry->created_at?->setTimezone('Asia/Beirut')->format('Y-m-d') === '2026-09-28');
 
-        $this->get('/audit?actor=system')->assertSee('Command line / system')->assertSee('Card status changed');
+        $this->get('/audit?actor=system')->assertSee('Línea de comandos / sistema')->assertSee('Estado de tarjeta cambiado');
     }
 
     public function test_values_are_redacted_and_escaped(): void
@@ -74,7 +74,7 @@ class AuditScreenTest extends TestCase
 
         $this->actingAs($this->admin())->get('/audit?entity=fuel_card&actor='.$this->admin()->id)->assertOk()
             ->assertDontSee('hunter2-not-shown')->assertDontSee('tok-not-shown')->assertDontSee('FF-ATLAS-001')
-            ->assertSee('[redacted]')->assertSee('••••-001')
+            ->assertSee('[redactado]')->assertSee('••••-001')
             ->assertSeeInOrder(['tokens_revoked', '—', '2'])
             ->assertSee('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;', false)
             ->assertDontSee('<script>alert', false)

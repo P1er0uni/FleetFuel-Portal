@@ -52,7 +52,10 @@ class FuelTransactionService
     /** Whole-transaction attempts for deadlocks, lock timeouts and unresolved same-reference races. */
     private const MAX_ATTEMPTS = 3;
 
-    public function __construct(private readonly PriceResolver $prices) {}
+    public function __construct(
+        private readonly PriceResolver $prices,
+        private readonly FleetRuleService $fleetRules,
+    ) {}
 
     /**
      * POS ingestion, steps 3–9. The caller already authenticated an active
@@ -180,6 +183,11 @@ class FuelTransactionService
     ): FuelTransaction {
         $card->loadMissing(['company', 'vehicle', 'driver']);
         $this->ensureCardAccepts($card, $product);
+
+        // The card's fleet may restrict products, stations and per-day or
+        // per-transaction volumes (docs/sdd/fase-1-flotas/spec.md). A card
+        // without a fleet skips this. Still under the card lock.
+        $this->fleetRules->ensureAccepts($card, $station, $product, $purchase);
 
         // Step 6: the price and rate in effect at the event time, from
         // stored rows only (no HTTP inside the transaction).

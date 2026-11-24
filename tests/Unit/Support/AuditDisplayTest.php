@@ -14,15 +14,15 @@ class AuditDisplayTest extends TestCase
     public static function values(): array
     {
         return [
-            'password' => ['password', 'hunter2', '[redacted]'],
-            'remember token' => ['remember_token', 'abc', '[redacted]'],
-            'api token' => ['token', 'plain-token', '[redacted]'],
-            'secret' => ['client_secret', 's3cr3t', '[redacted]'],
+            'password' => ['password', 'hunter2', '[redactado]'],
+            'remember token' => ['remember_token', 'abc', '[redactado]'],
+            'api token' => ['token', 'plain-token', '[redactado]'],
+            'secret' => ['client_secret', 's3cr3t', '[redactado]'],
             'a count of revoked tokens is not a secret' => ['tokens_revoked', 3, '3'],
             'card number masked' => ['card_no', 'FF-ATLAS-001', '••••-001'],
             'limit' => ['monthly_limit_l', '200.00', '200.00'],
-            'null' => ['vehicle_id', null, 'none'],
-            'true' => ['is_active', true, 'yes'],
+            'null' => ['vehicle_id', null, 'ninguno'],
+            'true' => ['is_active', true, 'sí'],
             'false' => ['is_active', false, 'no'],
             'nested values as JSON' => ['window', ['start' => '2026-09-01T08:00:00Z'], '{"start":"2026-09-01T08:00:00Z"}'],
         ];
@@ -41,15 +41,15 @@ class AuditDisplayTest extends TestCase
             ['field' => 'assigned_truck', 'before' => null, 'after' => 'TRK-01'],
         ], AuditDisplay::changes(['status' => 'pending'], ['status' => 'scheduled', 'assigned_truck' => 'TRK-01']));
 
-        $this->assertSame([['field' => 'is_active', 'before' => null, 'after' => 'yes']], AuditDisplay::changes(null, ['is_active' => true]));
+        $this->assertSame([['field' => 'is_active', 'before' => null, 'after' => 'sí']], AuditDisplay::changes(null, ['is_active' => true]));
         $this->assertSame([], AuditDisplay::changes(null, null));
     }
 
     public function test_actions_and_record_types_read_as_words(): void
     {
-        $this->assertSame('Card limits changed', AuditDisplay::action('card.limits_changed'));
-        $this->assertSame('Delivery order status changed', AuditDisplay::action('delivery_order.status_changed'));
-        $this->assertSame('Fuel card', AuditDisplay::entityLabel('fuel_card'));
+        $this->assertSame('Límites de tarjeta cambiados', AuditDisplay::action('card.limits_changed'));
+        $this->assertSame('Estado de orden de entrega cambiado', AuditDisplay::action('delivery_order.status_changed'));
+        $this->assertSame('Tarjeta de combustible', AuditDisplay::entityLabel('fuel_card'));
         $this->assertSame('Something new', AuditDisplay::entityLabel('something_new'));
         $this->assertArrayHasKey('delivery_order', AuditDisplay::entityOptions());
     }

@@ -9,6 +9,8 @@ use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\Driver;
 use App\Models\ExchangeRate;
+use App\Models\Fleet;
+use App\Models\FleetRule;
 use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use App\Models\Product;
@@ -88,6 +90,8 @@ class AppServiceProvider extends ServiceProvider
             'fuel_card' => FuelCard::class,
             'fuel_transaction' => FuelTransaction::class,
             'delivery_order' => DeliveryOrder::class,
+            'fleet' => Fleet::class,
+            'fleet_rule' => FleetRule::class,
         ]);
 
         // Blade lists render Bootstrap 5 pagination links.
@@ -130,6 +134,7 @@ class AppServiceProvider extends ServiceProvider
         $this->bindScoped('driver', fn (User $user) => Driver::query()->visibleTo($user));
         $this->bindScoped('card', fn (User $user) => FuelCard::query()->visibleTo($user));
         $this->bindScoped('delivery', fn (User $user) => DeliveryOrder::query()->visibleTo($user));
+        $this->bindScoped('fleet', fn (User $user) => Fleet::query()->visibleTo($user));
     }
 
     /**

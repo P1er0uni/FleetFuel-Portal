@@ -48,7 +48,7 @@ class StationController extends Controller
     {
         $station = $reference->createStation($request->validated(), $this->actor($request));
 
-        return redirect()->route('stations.index')->with('status', "Station {$station->name} added.");
+        return redirect()->route('stations.index')->with('status', "Estación {$station->name} agregada.");
     }
 
     public function edit(Station $station): View
@@ -62,13 +62,13 @@ class StationController extends Controller
     {
         $reference->updateStation($station, $request->validated(), $this->actor($request));
 
-        return redirect()->route('stations.index')->with('status', "Station {$station->name} saved.");
+        return redirect()->route('stations.index')->with('status', "Estación {$station->name} guardada.");
     }
 
     public function updateActive(SetActiveRequest $request, Station $station, ReferenceDataService $reference): RedirectResponse
     {
         $station = $reference->setStationActive($station, $request->boolean('is_active'), $this->actor($request));
 
-        return back()->with('status', "Station {$station->name} is now ".($station->is_active ? 'active.' : 'inactive.'));
+        return back()->with('status', "La estación {$station->name} ahora está ".($station->is_active ? 'activa.' : 'inactiva.'));
     }
 }

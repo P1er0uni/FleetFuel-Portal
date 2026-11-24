@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * product restriction and status change through dedicated service methods
  * that take the card lock and write an audit record (M03).
  */
-#[Fillable(['monthly_limit_l', 'monthly_limit_usd'])]
+#[Fillable(['monthly_limit_l', 'monthly_limit_usd', 'fleet_id'])]
 class FuelCard extends Model
 {
     use BelongsToCompany;
@@ -45,6 +45,12 @@ class FuelCard extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<Fleet, $this> */
+    public function fleet(): BelongsTo
+    {
+        return $this->belongsTo(Fleet::class);
     }
 
     /** @return BelongsTo<Vehicle, $this> */

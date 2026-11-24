@@ -268,3 +268,15 @@ Columns in this order: transaction_id, external_ref, company, vehicle_plate, sta
   - rapid fills: less than 30 minutes after the vehicle's previous fill, including a previous fill just before the range; ties by ID;
   - efficiency estimate: km since the previous fill divided by liters, full to full, from recorded readings only, null with a reason otherwise;
   - delivery SLA: hours from the first history row to the delivered row, per governorate, for orders delivered in the range.
+
+## Fleets (fase 1)
+
+The fleet endpoints (`docs/sdd/fase-1-flotas/spec.md`) are live in `openapi.json` 0.11.0: `GET /fleets`, `POST /fleets`, `GET /fleets/{id}`, `PUT /fleets/{id}`, `DELETE /fleets/{id}`, `GET /fleets/{id}/usage` and the member lists `GET /fleets/{id}/vehicles`, `GET /fleets/{id}/drivers` and `GET /fleets/{id}/cards`. Details the sections above leave open:
+
+- **Scope.** Admin: every company, optionally `company_id` on the list. Manager: own company; `company_id` is 422. Another company's fleet is 404 (the `{fleet}` binding is tenant-scoped). Abilities: `fleet:read` / `fleet:write`; station operators have neither.
+- **Create and update.** The company is chosen by the server: an admin must send `company_id` (a JSON integer naming an active company), a manager must omit it. The name is unique within the company. `monthly_quota_liters` (at most 3 decimal places) and `monthly_quota_amount` (USD, at most 2) are optional; null means unlimited. The company never changes: `company_id` on update is 422, like every unknown field. An inactive company is 403 `company_inactive`.
+- **Detail.** `GET /fleets/{id}` adds the fleet's `rules` (ordered by type) and the current Beirut month's `usage`. `rule_value` is the stored JSON object: `{"ids": [...]}` for `allowed_products`/`allowed_stations`, `{"value": "..."}` for the numeric rules.
+- **Usage.** `GET /fleets/{id}/usage` returns the same `usage` object: the month's first day, the fleet's cards' summed `used_liters`/`used_usd` from the reconciled monthly counters, both quotas, the percentages (one decimal, null without a quota) and `exceeded`. An exceeded quota is a signal only; it never blocks a purchase.
+- **Delete.** `DELETE /fleets/{id}` is 204 with an empty body. The members' `fleet_id` becomes null (SET NULL); they keep working exactly as before. The audit log keeps the history.
+- **Member lists.** Vehicles by plate, drivers by name, cards by card number; paginated; unknown query parameters are 422.
+- **Reports.** `GET /reports/consumption` accepts `fleet_id`: only the purchases paid with that fleet's cards, on the cards' current `fleet_id` (D8). The fleet must belong to the filtered company (admin) or the caller's company (manager); anything else is 422. The web report header offers the same "Flota" filter on consumption, top stations, quota exceptions, anomalies and efficiency.

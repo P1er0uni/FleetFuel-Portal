@@ -7,10 +7,10 @@
 @php($status = $exception->getStatusCode())
 
 @section('code', (string) $status)
-@section('title', $status === 503 ? 'Temporarily unavailable' : 'Something went wrong')
+@section('title', $status === 503 ? 'No disponible temporalmente' : 'Algo salió mal')
 @section('message', $status === 503
-    ? 'The portal is briefly unavailable, for example during maintenance. Try again in a few minutes.'
-    : 'An unexpected error stopped this request on our side. It has been logged. Try again in a moment; if it keeps happening, tell an administrator what you were doing.')
+    ? 'El portal no está disponible por un momento, por ejemplo durante mantenimiento. Vuelve a intentarlo en unos minutos.'
+    : 'Un error inesperado detuvo esta solicitud de nuestro lado. Quedó registrado. Vuelve a intentarlo en un momento; si sigue ocurriendo, avísale a un administrador qué estabas haciendo.')
 @section('actions')
-    <a class="btn btn-primary" href="{{ url('/') }}">Go to the start page</a>
+    <a class="btn btn-primary" href="{{ url('/') }}">Ir a la página de inicio</a>
 @endsection

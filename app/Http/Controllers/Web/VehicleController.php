@@ -8,14 +8,14 @@ use App\Http\Requests\Fleet\StoreVehicleRequest;
 use App\Http\Requests\Fleet\UpdateVehicleRequest;
 use App\Http\Requests\SetActiveRequest;
 use App\Models\Vehicle;
-use App\Services\FleetService;
+use App\Services\VehicleAndDriverService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
- * Thin controller: the Form Request validates and authorizes, FleetService
+ * Thin controller: the Form Request validates and authorizes, VehicleAndDriverService
  * applies the business rules, and {vehicle} arrives already tenant-scoped
  * (AppServiceProvider::bindTenantScopedModels), so another company's
  * vehicle is a 404 before any code here runs.
@@ -50,14 +50,15 @@ class VehicleController extends Controller
             'vehicle' => null,
             'companies' => $this->companyOptions($user, activeOnly: true),
             'ownCompany' => $user->isAdmin() ? null : $user->loadMissing('company')->company,
+            'fleets' => $this->fleetOptions($user->isAdmin() ? null : (int) $user->company_id),
         ]);
     }
 
-    public function store(StoreVehicleRequest $request, FleetService $fleet): RedirectResponse
+    public function store(StoreVehicleRequest $request, VehicleAndDriverService $fleet): RedirectResponse
     {
         $vehicle = $fleet->createVehicle($request->company(), $request->validated(), $this->actor($request));
 
-        return redirect()->route('vehicles.index')->with('status', "Vehicle {$vehicle->plate_no} added.");
+        return redirect()->route('vehicles.index')->with('status', "Vehículo {$vehicle->plate_no} agregado.");
     }
 
     public function edit(Vehicle $vehicle): View
@@ -68,20 +69,21 @@ class VehicleController extends Controller
             'vehicle' => $vehicle->loadMissing('company'),
             'companies' => null,
             'ownCompany' => $vehicle->company,
+            'fleets' => $this->fleetOptions($vehicle->company_id),
         ]);
     }
 
-    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, FleetService $fleet): RedirectResponse
+    public function update(UpdateVehicleRequest $request, Vehicle $vehicle, VehicleAndDriverService $fleet): RedirectResponse
     {
         $fleet->updateVehicle($vehicle, $request->validated(), $this->actor($request));
 
-        return redirect()->route('vehicles.index')->with('status', "Vehicle {$vehicle->plate_no} saved.");
+        return redirect()->route('vehicles.index')->with('status', "Vehículo {$vehicle->plate_no} guardado.");
     }
 
-    public function updateActive(SetActiveRequest $request, Vehicle $vehicle, FleetService $fleet): RedirectResponse
+    public function updateActive(SetActiveRequest $request, Vehicle $vehicle, VehicleAndDriverService $fleet): RedirectResponse
     {
         $vehicle = $fleet->setVehicleActive($vehicle, $request->boolean('is_active'), $this->actor($request));
 
-        return back()->with('status', "Vehicle {$vehicle->plate_no} is now ".($vehicle->is_active ? 'active.' : 'inactive.'));
+        return back()->with('status', "El vehículo {$vehicle->plate_no} ahora está ".($vehicle->is_active ? 'activo.' : 'inactivo.'));
     }
 }

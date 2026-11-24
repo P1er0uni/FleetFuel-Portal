@@ -12,7 +12,7 @@
     @vite(['resources/css/app.css'])
 </head>
 <body class="bg-body-tertiary">
-    <nav class="app-topbar navbar" data-bs-theme="dark" aria-label="Main">
+    <nav class="app-topbar navbar" data-bs-theme="dark" aria-label="Principal">
         <div class="container">
             <a class="navbar-brand" href="{{ url('/') }}">{{ config('app.name') }}</a>
         </div>
@@ -22,6 +22,7 @@
         <div class="row justify-content-center">
             <div class="col-md-9 col-lg-7">
                 <p class="text-body-secondary mb-1">Error @yield('code')</p>
+
                 <h1 class="h3">@yield('title')</h1>
                 <p class="lead">@yield('message')</p>
                 <div class="d-flex flex-wrap gap-2 mt-4">

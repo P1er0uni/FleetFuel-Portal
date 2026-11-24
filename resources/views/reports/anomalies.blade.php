@@ -3,30 +3,30 @@
 @use('App\Support\Display')
 @use('Brick\Math\BigDecimal')
 
-@section('title', 'Anomalies')
+@section('title', 'Anomalías')
 
 @section('content')
-    @include('reports._header', ['title' => 'Anomalies'])
+    @include('reports._header', ['title' => 'Anomalías'])
 
-    <h3 class="h6">More than the tank holds</h3>
-    <p class="small">Purchases of more liters than the vehicle's tank capacity recorded at purchase time. Purchases without a vehicle are not compared.</p>
+    <h3 class="h6">Más de lo que cabe en el tanque</h3>
+    <p class="small">Compras con más litros que la capacidad de tanque del vehículo registrada al momento de la compra. Las compras sin vehículo no se comparan.</p>
     @if ($overfills === [])
-        <p class="text-body-secondary">None in this period.</p>
+        <p class="text-body-secondary">Ninguna en este periodo.</p>
     @else
         <div class="table-responsive mb-4">
             <table class="table table-sm align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Purchase</th>
-                        <th scope="col">Time (Beirut)</th>
+                        <th scope="col">Compra</th>
+                        <th scope="col">Hora (Beirut)</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">Vehicle</th>
-                        <th scope="col">Station</th>
-                        <th scope="col" class="text-end">Liters</th>
-                        <th scope="col" class="text-end">Tank</th>
-                        <th scope="col" class="text-end">Excess</th>
+                        <th scope="col">Vehículo</th>
+                        <th scope="col">Estación</th>
+                        <th scope="col" class="text-end">Litros</th>
+                        <th scope="col" class="text-end">Tanque</th>
+                        <th scope="col" class="text-end">Exceso</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,25 +49,25 @@
         </div>
     @endif
 
-    <h3 class="h6">Rapid fills</h3>
-    <p class="small">Fills less than 30 minutes after the same vehicle's previous fill, including a previous fill just before this period. Two fills in the same second count, ordered by purchase number. Card-only purchases have no vehicle and are never flagged.</p>
+    <h3 class="h6">Cargas rápidas</h3>
+    <p class="small">Cargas a menos de 30 minutos de la carga anterior del mismo vehículo, incluyendo una carga anterior justo antes de este periodo. Dos cargas en el mismo segundo cuentan, ordenadas por número de compra. Las compras solo con tarjeta no tienen vehículo y nunca se marcan.</p>
     @if ($rapidFills === [])
-        <p class="text-body-secondary">None in this period.</p>
+        <p class="text-body-secondary">Ninguna en este periodo.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Purchase</th>
-                        <th scope="col">Time (Beirut)</th>
+                        <th scope="col">Compra</th>
+                        <th scope="col">Hora (Beirut)</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">Vehicle</th>
-                        <th scope="col">Station</th>
-                        <th scope="col" class="text-end">Liters</th>
-                        <th scope="col">Previous fill</th>
-                        <th scope="col" class="text-end">Minutes apart</th>
+                        <th scope="col">Vehículo</th>
+                        <th scope="col">Estación</th>
+                        <th scope="col" class="text-end">Litros</th>
+                        <th scope="col">Carga anterior</th>
+                        <th scope="col" class="text-end">Minutos de diferencia</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -81,7 +81,7 @@
                             <td>{{ $row['vehicle_plate'] }}</td>
                             <td>{{ $row['station'] }}</td>
                             <td class="text-end">{{ Display::decimal($row['liters']) }}</td>
-                            <td class="text-nowrap"><a href="{{ route('transactions.show', $row['previous_id']) }}">#{{ $row['previous_id'] }}</a> at {{ Display::businessTime($row['previous_at']) }}</td>
+                            <td class="text-nowrap"><a href="{{ route('transactions.show', $row['previous_id']) }}">#{{ $row['previous_id'] }}</a> a las {{ Display::businessTime($row['previous_at']) }}</td>
                             <td class="text-end">{{ intdiv($row['seconds_since_previous'], 60) }}</td>
                         </tr>
                     @endforeach

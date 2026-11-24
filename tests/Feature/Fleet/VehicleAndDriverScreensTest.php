@@ -37,7 +37,7 @@ class VehicleAndDriverScreensTest extends TestCase
         $this->actingAs($this->atlasManager())
             ->post('/vehicles', ['plate_no' => '  atl   999 ', 'fuel_type' => 'diesel', 'tank_capacity_l' => '65.5', 'odometer_km' => '1200'])
             ->assertRedirect(route('vehicles.index'))
-            ->assertSessionHas('status', 'Vehicle ATL 999 added.');
+            ->assertSessionHas('status', 'Vehículo ATL 999 agregado.');
 
         $vehicle = Vehicle::query()->where('plate_no', 'ATL 999')->sole();
         $this->assertSame($this->atlas()->id, $vehicle->company_id);
@@ -55,7 +55,7 @@ class VehicleAndDriverScreensTest extends TestCase
 
         $this->actingAs($this->admin());
         $this->post('/vehicles', ['plate_no' => 'X 2', 'fuel_type' => 'diesel', 'tank_capacity_l' => '50'])
-            ->assertSessionHasErrors(['company_id' => 'Choose a company.']);
+            ->assertSessionHasErrors(['company_id' => 'Elige una empresa.']);
         $this->post('/vehicles', ['company_id' => $this->cedar()->id, 'plate_no' => 'X 3', 'fuel_type' => 'petrol', 'tank_capacity_l' => '50'])
             ->assertSessionHasNoErrors();
 
@@ -86,7 +86,7 @@ class VehicleAndDriverScreensTest extends TestCase
         $this->actingAs($this->atlasManager());
 
         $this->put(route('vehicles.update', $vehicle), ['plate_no' => 'ATL-101', 'tank_capacity_l' => '60', 'fuel_type' => 'petrol'])
-            ->assertSessionHasErrors(['fuel_type' => 'The fuel type is fixed when the vehicle is created.']);
+            ->assertSessionHasErrors(['fuel_type' => 'El tipo de combustible queda fijo al crear el vehículo.']);
         $this->put(route('vehicles.update', $vehicle), ['plate_no' => 'ATL-101', 'tank_capacity_l' => '60', 'company_id' => $this->cedar()->id])
             ->assertSessionHasErrors('company_id');
 
@@ -192,7 +192,7 @@ class VehicleAndDriverScreensTest extends TestCase
     {
         $this->actingAs($this->atlasManager())
             ->post('/drivers', ['name' => 'Duplicate', 'license_no' => ' atl-dl-1001 '])
-            ->assertSessionHasErrors(['license_no' => 'This company already has a driver with this license number.']);
+            ->assertSessionHasErrors(['license_no' => 'Esta empresa ya tiene un conductor con este número de licencia.']);
 
         // The same license number in another company is a different driver.
         $this->actingAs($this->admin())
@@ -239,7 +239,7 @@ class VehicleAndDriverScreensTest extends TestCase
         }
 
         // The admin's form offers active companies; the manager's form names their own.
-        $this->actingAs($this->admin())->get('/vehicles/create')->assertSee('Cedar Catering');
-        $this->actingAs($this->atlasManager())->get('/vehicles/create')->assertSee('Atlas Logistics')->assertDontSee('Cedar Catering');
+        $this->actingAs($this->admin())->get('/vehicles/create')->assertSee('Catering Cedro');
+        $this->actingAs($this->atlasManager())->get('/vehicles/create')->assertSee('Logística Atlas')->assertDontSee('Catering Cedro');
     }
 }

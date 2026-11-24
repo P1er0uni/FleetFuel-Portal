@@ -37,7 +37,7 @@ class ExchangeRateSync
         $lock = Cache::lock(self::LOCK, 120);
 
         if (! $lock->get()) {
-            return new RateSyncResult('busy', 'Another rates:sync run is in progress; nothing was done.');
+            return new RateSyncResult('busy', 'Otra corrida de rates:sync está en progreso; no se hizo nada.');
         }
 
         try {
@@ -53,7 +53,7 @@ class ExchangeRateSync
         $state = IntegrationSyncState::query()->firstOrCreate(['name' => $mode->syncStateName()]);
 
         if (! $force && $state->next_attempt_at?->isAfter($now)) {
-            return new RateSyncResult('skipped', "Nothing fetched: the next {$mode->value} update is not due until {$state->next_attempt_at->toIso8601ZuluString()}. Use --force to fetch anyway.");
+            return new RateSyncResult('skipped', "No se descargó nada: la próxima actualización {$mode->value} no vence hasta {$state->next_attempt_at->toIso8601ZuluString()}. Usa --force para descargar de todos modos.");
         }
 
         $state->last_attempt_at = $now;
@@ -72,7 +72,7 @@ class ExchangeRateSync
                 'retry_at' => $e->retryAt?->toIso8601ZuluString(),
             ]);
 
-            return new RateSyncResult('failed', "{$e->getMessage()} Stored rates are unchanged.");
+            return new RateSyncResult('failed', "{$e->getMessage()} Las tasas almacenadas no cambian.");
         }
 
         $outcome = $this->rates->recordObservation($observation);
@@ -82,12 +82,12 @@ class ExchangeRateSync
         $state->next_attempt_at = $observation->nextUpdateAt;
         $state->save();
 
-        $label = "{$observation->source->label()} observation of {$observation->rate} LBP per USD at {$observation->effectiveAt->toIso8601ZuluString()}";
+        $label = "observación de {$observation->source->label()} de {$observation->rate} LBP por USD a las {$observation->effectiveAt->toIso8601ZuluString()}";
 
         return match ($outcome) {
-            ObservationOutcome::Stored => new RateSyncResult('stored', "Stored the {$label}."),
-            ObservationOutcome::AlreadyStored => new RateSyncResult('already_stored', "The {$label} was already stored; nothing changed."),
-            ObservationOutcome::Conflicting => new RateSyncResult('conflicting', "Kept the stored value: a different rate is already stored for {$observation->effectiveAt->toIso8601ZuluString()} (see the log)."),
+            ObservationOutcome::Stored => new RateSyncResult('stored', "Se almacenó la {$label}."),
+            ObservationOutcome::AlreadyStored => new RateSyncResult('already_stored', "La {$label} ya estaba almacenada; no cambió nada."),
+            ObservationOutcome::Conflicting => new RateSyncResult('conflicting', "Se conservó el valor almacenado: ya hay una tasa distinta almacenada para {$observation->effectiveAt->toIso8601ZuluString()} (consulta el log)."),
         };
     }
 }

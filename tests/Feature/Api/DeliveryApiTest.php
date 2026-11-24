@@ -99,7 +99,7 @@ class DeliveryApiTest extends TestCase
 
         $id = $this->createOrder([
             'company_id' => $this->cedar()->id,
-            'address' => 'Cedar central kitchen, Jdeideh (demo)',
+            'address' => 'Cocina central Cedro, Jdeideh (demo)',
             'governorate' => 'Mount Lebanon',
             'liters' => '800.00',
             'preferred_start_at' => '2026-09-30T08:00:00+03:00',
@@ -266,7 +266,7 @@ class DeliveryApiTest extends TestCase
         $admin = $this->apiToken($this->admin());
         $orders = DeliveryOrder::query()->count();
         $valid = [
-            'address' => 'Atlas depot, Port Road, Beirut (demo)',
+            'address' => 'Depósito Atlas, Carretera del Puerto, Beirut (demo)',
             'governorate' => 'Beirut',
             'liters' => '500.00',
             'preferred_start_at' => '2026-09-29T08:00:00+03:00',

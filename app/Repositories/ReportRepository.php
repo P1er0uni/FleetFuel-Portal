@@ -38,7 +38,7 @@ class ReportRepository
     /** [group id column, label expression, join] for each allowed grouping. */
     private const CONSUMPTION_GROUPS = [
         'company' => ['t.company_id', 'c.name', 'JOIN companies c ON c.id = t.company_id'],
-        'vehicle' => ['t.vehicle_id', "COALESCE(v.plate_no, 'No vehicle (card only)')", 'LEFT JOIN vehicles v ON v.id = t.vehicle_id'],
+        'vehicle' => ['t.vehicle_id', "COALESCE(v.plate_no, 'Sin vehículo (solo tarjeta)')", 'LEFT JOIN vehicles v ON v.id = t.vehicle_id'],
         'product' => ['t.product_id', "CONCAT(p.name, ' (', p.code, ')')", 'JOIN products p ON p.id = t.product_id'],
     ];
 
@@ -118,14 +118,20 @@ class ReportRepository
      * @param  string  $monthStart  Y-m-01, the Beirut month
      * @return list<array{card_id: int, card_no: string, company_id: int, company: string, vehicle_plate: ?string, status: string, monthly_limit_l: ?string, monthly_limit_usd: ?string, used_l: string, used_usd: string, reasons: list<string>}>
      */
-    public function quotaExceptions(?int $companyId, string $monthStart): array
+    public function quotaExceptions(?int $companyId, string $monthStart, ?int $fleetId = null): array
     {
         $bindings = [$monthStart];
         $companyCondition = '';
+        $fleetCondition = '';
 
         if ($companyId !== null) {
             $companyCondition = 'AND f.company_id = ?';
             $bindings[] = $companyId;
+        }
+
+        if ($fleetId !== null) {
+            $fleetCondition = 'AND f.fleet_id = ?';
+            $bindings[] = $fleetId;
         }
 
         $rows = DB::select(<<<SQL
@@ -136,7 +142,7 @@ class ReportRepository
             JOIN companies c ON c.id = f.company_id
             LEFT JOIN vehicles v ON v.id = f.vehicle_id
             LEFT JOIN card_monthly_usage u ON u.fuel_card_id = f.id AND u.month_start = ?
-            WHERE f.status IN ('active', 'blocked') {$companyCondition}
+            WHERE f.status IN ('active', 'blocked') {$companyCondition} {$fleetCondition}
               AND (
                   f.status = 'blocked'
                   OR (f.monthly_limit_l IS NOT NULL AND COALESCE(u.used_l, 0) >= f.monthly_limit_l)
@@ -172,9 +178,9 @@ class ReportRepository
      */
     private function quotaReasons(array $card): array
     {
-        $reasons = $card['status'] === 'blocked' ? ['Blocked: every purchase is declined.'] : [];
+        $reasons = $card['status'] === 'blocked' ? ['Bloqueada: toda compra es rechazada.'] : [];
 
-        foreach ([['monthly_limit_l', 'used_l', 'liter', 'L'], ['monthly_limit_usd', 'used_usd', 'USD', 'USD']] as [$limitKey, $usedKey, $name, $unit]) {
+        foreach ([['monthly_limit_l', 'used_l', 'litros', 'L'], ['monthly_limit_usd', 'used_usd', 'USD', 'USD']] as [$limitKey, $usedKey, $name, $unit]) {
             $limit = $card[$limitKey];
 
             if ($limit === null) {
@@ -184,9 +190,9 @@ class ReportRepository
             $comparison = BigDecimal::of($card[$usedKey])->compareTo($limit);
 
             if ($comparison > 0) {
-                $reasons[] = "Over the {$name} limit: {$card[$usedKey]} {$unit} used of {$limit} {$unit} (the limit was lowered below this month's usage).";
+                $reasons[] = "Sobre el límite de {$name}: {$card[$usedKey]} {$unit} usados de {$limit} {$unit} (el límite se bajó por debajo del consumo de este mes).";
             } elseif ($comparison === 0) {
-                $reasons[] = ucfirst($name)." limit reached: {$card[$usedKey]} of {$limit} {$unit} used, nothing left this month.";
+                $reasons[] = "Límite de {$name} alcanzado: {$card[$usedKey]} de {$limit} {$unit} usados, no queda nada este mes.";
             }
         }
 
@@ -245,11 +251,12 @@ class ReportRepository
     {
         $lookbackFrom = $scope->from->subSeconds(self::RAPID_FILL_SECONDS);
         [$companyCondition, $companyBindings] = $this->companyCondition($scope, 't');
+        [$fleetCondition, $fleetBindings] = $this->fleetCondition($scope, 'f');
         $gap = $this->secondsBetween('f.previous_at', 'f.transacted_at');
 
         $rows = DB::select(<<<SQL
             WITH fills AS (
-                SELECT t.id, t.company_id, t.vehicle_id, t.station_id, t.transacted_at, t.liters,
+                SELECT t.id, t.company_id, t.vehicle_id, t.station_id, t.fuel_card_id, t.transacted_at, t.liters,
                        LAG(t.id) OVER w AS previous_id,
                        LAG(t.transacted_at) OVER w AS previous_at
                 FROM fuel_transactions t
@@ -263,11 +270,11 @@ class ReportRepository
             JOIN companies c ON c.id = f.company_id
             JOIN vehicles v ON v.id = f.vehicle_id
             JOIN stations s ON s.id = f.station_id
-            WHERE f.transacted_at >= ?
+            WHERE f.transacted_at >= ? {$fleetCondition}
               AND f.previous_id IS NOT NULL
               AND {$gap} < ?
             ORDER BY f.transacted_at, f.id
-            SQL, [$lookbackFrom, $scope->to, ...$companyBindings, $scope->from, self::RAPID_FILL_SECONDS]);
+            SQL, [$lookbackFrom, $scope->to, ...$companyBindings, $scope->from, ...$fleetBindings, self::RAPID_FILL_SECONDS]);
 
         return array_map(fn (object $row): array => [
             'id' => (int) $row->id,
@@ -303,15 +310,16 @@ class ReportRepository
     {
         [$companyCondition, $companyBindings] = $this->companyCondition($scope, 't');
         [$vehicleCondition, $vehicleBindings] = $scope->companyId === null ? ['', []] : ['WHERE v.company_id = ?', [$scope->companyId]];
+        [$fleetCondition, $fleetBindings] = $this->fleetCondition($scope, 'f');
 
         $rows = DB::select(<<<SQL
             WITH candidates AS (
-                SELECT t.id, t.company_id, t.vehicle_id, t.transacted_at, t.liters, t.odometer_km
+                SELECT t.id, t.company_id, t.vehicle_id, t.fuel_card_id, t.transacted_at, t.liters, t.odometer_km
                 FROM fuel_transactions t
                 WHERE t.vehicle_id IS NOT NULL
                   AND t.transacted_at >= ? AND t.transacted_at < ? {$companyCondition}
                 UNION ALL
-                SELECT t.id, t.company_id, t.vehicle_id, t.transacted_at, t.liters, t.odometer_km
+                SELECT t.id, t.company_id, t.vehicle_id, t.fuel_card_id, t.transacted_at, t.liters, t.odometer_km
                 FROM fuel_transactions t
                 JOIN (
                     SELECT (
@@ -339,9 +347,9 @@ class ReportRepository
             FROM fills f
             JOIN companies co ON co.id = f.company_id
             JOIN vehicles v ON v.id = f.vehicle_id
-            WHERE f.transacted_at >= ?
+            WHERE f.transacted_at >= ? {$fleetCondition}
             ORDER BY v.plate_no, f.vehicle_id, f.transacted_at, f.id
-            SQL, [$scope->from, $scope->to, ...$companyBindings, $scope->from, ...$vehicleBindings, $scope->from]);
+            SQL, [$scope->from, $scope->to, ...$companyBindings, $scope->from, ...$vehicleBindings, $scope->from, ...$fleetBindings]);
 
         return array_map(function (object $row): array {
             $odometer = $row->odometer_km === null ? null : (int) $row->odometer_km;
@@ -428,10 +436,11 @@ class ReportRepository
     private function ledgerWhere(ReportScope $scope): array
     {
         [$companyCondition, $companyBindings] = $this->companyCondition($scope, 't');
+        [$fleetCondition, $fleetBindings] = $this->fleetCondition($scope, 't');
 
         return [
-            "t.transacted_at >= ? AND t.transacted_at < ? {$companyCondition}",
-            [$scope->from, $scope->to, ...$companyBindings],
+            "t.transacted_at >= ? AND t.transacted_at < ? {$companyCondition} {$fleetCondition}",
+            [$scope->from, $scope->to, ...$companyBindings, ...$fleetBindings],
         ];
     }
 
@@ -441,6 +450,21 @@ class ReportRepository
     private function companyCondition(ReportScope $scope, string $alias): array
     {
         return $scope->companyId === null ? ['', []] : ["AND {$alias}.company_id = ?", [$scope->companyId]];
+    }
+
+    /**
+     * The fleet filter (docs/sdd/fase-1-flotas/spec.md, D8): only rows paid
+     * with the fleet's cards. The cards' current fleet_id decides, because
+     * the cards are the entity that spends; the purchase's own snapshots
+     * still decide ownership and amounts.
+     *
+     * @return array{string, list<int>}
+     */
+    private function fleetCondition(ReportScope $scope, string $alias): array
+    {
+        return $scope->fleetId === null
+            ? ['', []]
+            : ["AND {$alias}.fuel_card_id IN (SELECT id FROM fuel_cards WHERE fleet_id = ?)", [$scope->fleetId]];
     }
 
     /** Whole seconds from $earlier to $later, as SQL for the connection's driver. */

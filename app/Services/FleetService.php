@@ -3,143 +3,228 @@
 namespace App\Services;
 
 use App\Enums\CompanyStatus;
+use App\Enums\FleetStatus;
 use App\Exceptions\BusinessRuleViolation;
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\Fleet;
+use App\Models\FuelCard;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Support\Decimal;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Vehicles and drivers, for the web screens now and the API in M06. The
- * company is chosen by the server when a record is created and never
- * changes. An inactive company's fleet is read-only, except that vehicles
- * and drivers can still be deactivated.
+ * Every change to a fleet (docs/sdd/fase-1-flotas/spec.md): creation, edits,
+ * status, deletion (members are ungrouped by the SET NULL foreign key) and
+ * member assignment. Each change writes one audit row in the same database
+ * transaction. The company is chosen by the server on creation and never
+ * changes; an inactive company's fleets are read-only.
  */
 class FleetService
 {
     public function __construct(private readonly AuditService $audit) {}
 
     /**
-     * @param  array{plate_no: string, fuel_type: string, tank_capacity_l: string, odometer_km?: int|string|null}  $data
+     * @param  array{name: string, description?: string|null, monthly_quota_liters?: string|null, monthly_quota_amount?: string|null}  $data
      */
-    public function createVehicle(Company $company, array $data, User $actor): Vehicle
+    public function create(Company $company, array $data, User $actor): Fleet
     {
         $this->ensureCompanyActive($company);
 
-        $vehicle = new Vehicle([
-            'plate_no' => Vehicle::normalizePlate($data['plate_no']),
-            'fuel_type' => $data['fuel_type'],
-            'tank_capacity_l' => Decimal::normalize($data['tank_capacity_l']),
-            'odometer_km' => $data['odometer_km'] ?? null,
-        ]);
-        $vehicle->forceFill(['company_id' => $company->id, 'is_active' => true])->save();
+        return DB::transaction(function () use ($company, $data, $actor): Fleet {
+            $fleet = new Fleet;
+            $fleet->forceFill([
+                'company_id' => $company->id,
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'monthly_quota_liters' => Decimal::normalize($data['monthly_quota_liters'] ?? null, 3),
+                'monthly_quota_amount' => Decimal::normalize($data['monthly_quota_amount'] ?? null),
+                'status' => FleetStatus::Active,
+            ])->save();
 
-        return $vehicle;
+            $this->audit->record('fleet.created', $fleet, $actor, $company->id, null, $this->quotaValues($fleet));
+
+            return $fleet;
+        });
     }
 
     /**
-     * Plate, tank capacity and odometer. Fuel type and company are fixed at
-     * creation; purchases keep their own tank-capacity snapshot.
+     * Name, description and quotas. The company never changes.
      *
-     * @param  array{plate_no: string, tank_capacity_l: string, odometer_km?: int|string|null}  $data
+     * @param  array{name: string, description?: string|null, monthly_quota_liters?: string|null, monthly_quota_amount?: string|null}  $data
      */
-    public function updateVehicle(Vehicle $vehicle, array $data, User $actor): Vehicle
+    public function update(Fleet $fleet, array $data, User $actor): Fleet
     {
-        $this->ensureCompanyActive($this->companyOf($vehicle->company_id));
+        return DB::transaction(function () use ($fleet, $data, $actor): Fleet {
+            $fleet = $this->lock($fleet);
+            $this->ensureCompanyActive($this->companyOf($fleet));
 
-        $vehicle->fill([
-            'plate_no' => Vehicle::normalizePlate($data['plate_no']),
-            'tank_capacity_l' => Decimal::normalize($data['tank_capacity_l']),
-            'odometer_km' => $data['odometer_km'] ?? null,
-        ])->save();
+            $old = $this->quotaValues($fleet) + ['name' => $fleet->name];
+            $fleet->forceFill([
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'monthly_quota_liters' => Decimal::normalize($data['monthly_quota_liters'] ?? null, 3),
+                'monthly_quota_amount' => Decimal::normalize($data['monthly_quota_amount'] ?? null),
+            ]);
 
-        return $vehicle;
+            if (! $fleet->isDirty()) {
+                return $fleet;
+            }
+
+            $fleet->save();
+            $this->audit->record('fleet.updated', $fleet, $actor, $fleet->company_id, $old, $this->quotaValues($fleet) + ['name' => $fleet->name]);
+
+            return $fleet;
+        });
     }
 
-    public function setVehicleActive(Vehicle $vehicle, bool $active, User $actor): Vehicle
+    /** Activate or deactivate; both directions are always allowed. */
+    public function changeStatus(Fleet $fleet, FleetStatus $status, User $actor): Fleet
     {
-        return DB::transaction(function () use ($vehicle, $active, $actor): Vehicle {
-            $vehicle = Vehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
+        return DB::transaction(function () use ($fleet, $status, $actor): Fleet {
+            $fleet = $this->lock($fleet);
 
-            if ($vehicle->is_active === $active) {
-                return $vehicle;
+            if ($fleet->status === $status) {
+                return $fleet;
             }
 
-            if ($active) {
-                $this->ensureCompanyActive($this->companyOf($vehicle->company_id));
-            }
+            $old = $fleet->status;
+            $fleet->forceFill(['status' => $status])->save();
 
-            $vehicle->forceFill(['is_active' => $active])->save();
-            $this->audit->record($active ? 'vehicle.activated' : 'vehicle.deactivated', $vehicle, $actor, $vehicle->company_id,
-                ['is_active' => ! $active],
-                ['is_active' => $active],
+            $this->audit->record('fleet.status_changed', $fleet, $actor, $fleet->company_id,
+                ['status' => $old->value],
+                ['status' => $status->value],
             );
 
-            return $vehicle;
+            return $fleet;
         });
     }
 
     /**
-     * @param  array{name: string, license_no: string, phone?: string|null}  $data
+     * Delete the fleet. The SET NULL foreign keys ungroup its vehicles,
+     * drivers and cards, which keep working exactly as before; the audit
+     * row keeps the history (docs/sdd/fase-1-flotas/spec.md, D2).
      */
-    public function createDriver(Company $company, array $data, User $actor): Driver
+    public function delete(Fleet $fleet, User $actor): void
     {
-        $this->ensureCompanyActive($company);
+        DB::transaction(function () use ($fleet, $actor): void {
+            $fleet = $this->lock($fleet);
+            $this->ensureCompanyActive($this->companyOf($fleet));
 
-        $driver = new Driver([
-            'name' => $data['name'],
-            'license_no' => Driver::normalizeLicense($data['license_no']),
-            'phone' => $data['phone'] ?? null,
-        ]);
-        $driver->forceFill(['company_id' => $company->id, 'is_active' => true])->save();
+            $this->audit->record('fleet.deleted', $fleet, $actor, $fleet->company_id,
+                $this->quotaValues($fleet) + ['name' => $fleet->name, 'status' => $fleet->status->value],
+                null);
 
-        return $driver;
-    }
-
-    /**
-     * @param  array{name: string, license_no: string, phone?: string|null}  $data
-     */
-    public function updateDriver(Driver $driver, array $data, User $actor): Driver
-    {
-        $this->ensureCompanyActive($this->companyOf($driver->company_id));
-
-        $driver->fill([
-            'name' => $data['name'],
-            'license_no' => Driver::normalizeLicense($data['license_no']),
-            'phone' => $data['phone'] ?? null,
-        ])->save();
-
-        return $driver;
-    }
-
-    public function setDriverActive(Driver $driver, bool $active, User $actor): Driver
-    {
-        return DB::transaction(function () use ($driver, $active, $actor): Driver {
-            $driver = Driver::query()->lockForUpdate()->findOrFail($driver->id);
-
-            if ($driver->is_active === $active) {
-                return $driver;
-            }
-
-            if ($active) {
-                $this->ensureCompanyActive($this->companyOf($driver->company_id));
-            }
-
-            $driver->forceFill(['is_active' => $active])->save();
-            $this->audit->record($active ? 'driver.activated' : 'driver.deactivated', $driver, $actor, $driver->company_id,
-                ['is_active' => ! $active],
-                ['is_active' => $active],
-            );
-
-            return $driver;
+            $fleet->delete();
         });
     }
 
-    private function companyOf(int $companyId): Company
+    /**
+     * Assign vehicles, drivers and cards to the fleet. Every record must
+     * belong to the fleet's company; anything else is refused and nothing
+     * changes. Records already in another fleet move to this one.
+     *
+     * @param  array{vehicles?: list<int>, drivers?: list<int>, cards?: list<int>}  $members
+     */
+    public function assign(Fleet $fleet, array $members, User $actor): void
     {
-        return Company::query()->findOrFail($companyId);
+        DB::transaction(function () use ($fleet, $members, $actor): void {
+            $fleet = $this->lock($fleet);
+            $this->ensureCompanyActive($this->companyOf($fleet));
+
+            $changes = [
+                'vehicles' => $this->moveMembers(Vehicle::query(), $fleet, $members['vehicles'] ?? []),
+                'drivers' => $this->moveMembers(Driver::query(), $fleet, $members['drivers'] ?? []),
+                'cards' => $this->moveMembers(FuelCard::query(), $fleet, $members['cards'] ?? []),
+            ];
+
+            if (array_sum(array_map('count', $changes)) === 0) {
+                return;
+            }
+
+            $this->audit->record('fleet.assignment_changed', $fleet, $actor, $fleet->company_id, null, [
+                'assigned' => $changes,
+            ]);
+        });
+    }
+
+    /**
+     * Unassign members: their fleet_id becomes NULL and they keep working
+     * without the fleet's grouping.
+     *
+     * @param  array{vehicles?: list<int>, drivers?: list<int>, cards?: list<int>}  $members
+     */
+    public function unassign(Fleet $fleet, array $members, User $actor): void
+    {
+        DB::transaction(function () use ($fleet, $members, $actor): void {
+            $fleet = $this->lock($fleet);
+
+            $changes = [
+                'vehicles' => $this->removeMembers(Vehicle::query(), $fleet, $members['vehicles'] ?? []),
+                'drivers' => $this->removeMembers(Driver::query(), $fleet, $members['drivers'] ?? []),
+                'cards' => $this->removeMembers(FuelCard::query(), $fleet, $members['cards'] ?? []),
+            ];
+
+            if (array_sum(array_map('count', $changes)) === 0) {
+                return;
+            }
+
+            $this->audit->record('fleet.assignment_changed', $fleet, $actor, $fleet->company_id,
+                ['unassigned' => $changes],
+                null);
+        });
+    }
+
+    /**
+     * @param  Builder<covariant Model>  $query
+     * @param  list<int>  $ids
+     * @return list<int> the IDs that were assigned
+     */
+    private function moveMembers(Builder $query, Fleet $fleet, array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $found = $query->whereKey($ids)->where('company_id', $fleet->company_id)->pluck('id')->all();
+
+        if (count($found) !== count($ids)) {
+            throw ValidationException::withMessages(['members' => 'Every member must belong to the fleet\'s company.']);
+        }
+
+        $query->whereKey($found)->update(['fleet_id' => $fleet->id, 'updated_at' => now()]);
+
+        return $found;
+    }
+
+    /**
+     * @param  Builder<covariant Model>  $query
+     * @param  list<int>  $ids
+     * @return list<int> the IDs that were unassigned
+     */
+    private function removeMembers(Builder $query, Fleet $fleet, array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $found = $query->whereKey($ids)->where('fleet_id', $fleet->id)->pluck('id')->all();
+        $query->whereKey($found)->update(['fleet_id' => null, 'updated_at' => now()]);
+
+        return $found;
+    }
+
+    private function lock(Fleet $fleet): Fleet
+    {
+        return Fleet::query()->lockForUpdate()->findOrFail($fleet->id);
     }
 
     private function ensureCompanyActive(Company $company): void
@@ -147,5 +232,19 @@ class FleetService
         if ($company->status !== CompanyStatus::Active) {
             throw BusinessRuleViolation::companyInactive();
         }
+    }
+
+    private function companyOf(Fleet $fleet): Company
+    {
+        return Company::query()->findOrFail($fleet->company_id);
+    }
+
+    /** @return array<string, string|null> */
+    private function quotaValues(Fleet $fleet): array
+    {
+        return [
+            'monthly_quota_liters' => $fleet->monthly_quota_liters,
+            'monthly_quota_amount' => $fleet->monthly_quota_amount,
+        ];
     }
 }

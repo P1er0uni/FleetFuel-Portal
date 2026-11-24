@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Fleet;
 
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Rules\DecimalString;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rule;
 /** Company and fuel type are fixed after creation, so sending them is an error. */
 class UpdateVehicleRequest extends FormRequest
 {
+    use ResolvesFleet;
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -37,6 +40,7 @@ class UpdateVehicleRequest extends FormRequest
                 Rule::unique('vehicles', 'plate_no')->ignore($this->vehicle()->id)],
             'tank_capacity_l' => ['required', new DecimalString(8, allowZero: false)],
             'odometer_km' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'fleet_id' => $this->fleetRules($this->vehicle()->company_id),
         ];
     }
 
@@ -45,10 +49,10 @@ class UpdateVehicleRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'plate_no.regex' => 'Use letters, digits, spaces and hyphens only.',
-            'company_id.prohibited' => 'A vehicle cannot move to another company.',
-            'fuel_type.prohibited' => 'The fuel type is fixed when the vehicle is created.',
+        return $this->fleetMessages() + [
+            'plate_no.regex' => 'Usa solo letras, dígitos, espacios y guiones.',
+            'company_id.prohibited' => 'Un vehículo no puede cambiar a otra empresa.',
+            'fuel_type.prohibited' => 'El tipo de combustible queda fijo al crear el vehículo.',
         ];
     }
 

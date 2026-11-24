@@ -7,28 +7,28 @@
 --}}
 @php($showRateSource ??= false)
 @if ($transactions->isEmpty())
-    <p class="text-body-secondary">{{ $emptyMessage ?? 'No purchases yet.' }}</p>
+    <p class="text-body-secondary">{{ $emptyMessage ?? 'Todavía no hay compras.' }}</p>
 @else
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle bg-body">
             <thead>
                 <tr>
-                    <th scope="col">Time (Beirut)</th>
+                    <th scope="col">Hora (Beirut)</th>
                     @if ($showCompany)
-                        <th scope="col">Company</th>
+                        <th scope="col">Empresa</th>
                     @endif
                     @if ($showStation)
-                        <th scope="col">Station</th>
+                        <th scope="col">Estación</th>
                     @endif
-                    <th scope="col">Card</th>
-                    <th scope="col">Product</th>
-                    <th scope="col" class="text-end">Liters</th>
-                    <th scope="col" class="text-end">Amount (USD)</th>
-                    <th scope="col" class="text-end">Amount (LBP)</th>
+                    <th scope="col">Tarjeta</th>
+                    <th scope="col">Producto</th>
+                    <th scope="col" class="text-end">Litros</th>
+                    <th scope="col" class="text-end">Monto (USD)</th>
+                    <th scope="col" class="text-end">Monto (LBP)</th>
                     @if ($showRateSource)
-                        <th scope="col">Rate source</th>
+                        <th scope="col">Origen de la tasa</th>
                     @endif
-                    <th scope="col"><span class="visually-hidden">Details</span></th>
+                    <th scope="col"><span class="visually-hidden">Detalles</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -49,7 +49,7 @@
                         @if ($showRateSource)
                             <td>@include('partials.rate-source-badge', ['source' => $transaction->rate_source])</td>
                         @endif
-                        <td><a href="{{ route('transactions.show', $transaction->id) }}">Details<span class="visually-hidden"> of purchase {{ $transaction->id }}</span></a></td>
+                        <td><a href="{{ route('transactions.show', $transaction->id) }}">Detalles<span class="visually-hidden"> de la compra {{ $transaction->id }}</span></a></td>
                     </tr>
                 @endforeach
             </tbody>

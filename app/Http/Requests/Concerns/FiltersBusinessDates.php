@@ -41,9 +41,15 @@ trait FiltersBusinessDates
             }
 
             if (CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > 366) {
-                $validator->errors()->add('to', 'The date range may cover at most 366 days.');
+                $validator->errors()->add('to', $this->dateRangeLimitMessage());
             }
         };
+    }
+
+    /** The web screens are Spanish; API requests override this with English. */
+    protected function dateRangeLimitMessage(): string
+    {
+        return 'El rango de fechas puede cubrir como máximo 366 días.';
     }
 
     /**

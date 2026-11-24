@@ -1,27 +1,27 @@
 @extends('layouts.app')
 
-@section('title', 'Delivery SLA')
+@section('title', 'SLA de entregas')
 
 @section('content')
-    @include('reports._header', ['title' => 'Delivery time by governorate'])
+    @include('reports._header', ['title' => 'Tiempo de entrega por gobernación'])
 
     <p class="small">
-        Hours from the request (the order's first timeline entry) to delivery (its "delivered" entry), for orders delivered in this period.
-        Pending, in-progress and cancelled orders are not included.
+        Horas desde la solicitud (la primera entrada de la cronología de la orden) hasta la entrega (su entrada "entregada"), para órdenes entregadas en este periodo.
+        Las órdenes pendientes, en curso y canceladas no se incluyen.
     </p>
 
     @if ($rows === [])
-        <p class="text-body-secondary">No deliveries were completed in this period.</p>
+        <p class="text-body-secondary">No se completó ninguna entrega en este periodo.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Governorate</th>
-                        <th scope="col" class="text-end">Delivered</th>
-                        <th scope="col" class="text-end">Average hours</th>
-                        <th scope="col" class="text-end">Fastest</th>
-                        <th scope="col" class="text-end">Slowest</th>
+                        <th scope="col">Gobernación</th>
+                        <th scope="col" class="text-end">Entregadas</th>
+                        <th scope="col" class="text-end">Horas promedio</th>
+                        <th scope="col" class="text-end">Más rápida</th>
+                        <th scope="col" class="text-end">Más lenta</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,7 +37,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="fw-semibold">
-                        <th scope="row">All governorates</th>
+                        <th scope="row">Todas las gobernaciones</th>
                         <td class="text-end">{{ $delivered }}</td>
                         <td class="text-end">{{ $averageHours }}</td>
                         <td colspan="2"></td>

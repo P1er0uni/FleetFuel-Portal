@@ -58,9 +58,9 @@ class AuthorizationMatrixTest extends TestCase
         $this->travelTo(CarbonImmutable::parse(self::FIXTURE_NOW));
         $this->seedDemo();
 
-        $this->atlas = Company::query()->where('name', 'Atlas Logistics')->firstOrFail();
-        $this->cedar = Company::query()->where('name', 'Cedar Catering')->firstOrFail();
-        $this->harbor = Station::query()->where('name', 'Harbor Demo Station')->firstOrFail();
+        $this->atlas = Company::query()->where('name', 'Logística Atlas')->firstOrFail();
+        $this->cedar = Company::query()->where('name', 'Catering Cedro')->firstOrFail();
+        $this->harbor = Station::query()->where('name', 'Estación Demo Puerto')->firstOrFail();
         $this->admin = $this->account('admin@fleetfuel.test');
         $this->managerAtlas = $this->account('manager.atlas@fleetfuel.test');
         $this->managerCedar = $this->account('manager.cedar@fleetfuel.test');
@@ -115,7 +115,7 @@ class AuthorizationMatrixTest extends TestCase
         $this->assertSame([$this->atlas->id], Company::query()->visibleTo($this->managerAtlas)->pluck('id')->all());
         $this->assertSame(0, Company::query()->visibleTo($this->operatorHarbor)->count());
 
-        // The seeded South Demo Station is inactive: only the admin sees it.
+        // The seeded Estación Demo Sur is inactive: only the admin sees it.
         $this->assertSame(3, Station::query()->visibleTo($this->admin)->count());
         $this->assertSame(2, Station::query()->visibleTo($this->managerAtlas)->count());
         $this->assertSame(2, Station::query()->visibleTo($this->operatorHarbor)->count());
@@ -253,7 +253,7 @@ class AuthorizationMatrixTest extends TestCase
         $this->assertNotNull($manager);
         $this->assertSame(UserRole::CompanyManager, $manager->role);
         $this->assertSame($this->atlas->id, $manager->company_id);
-        $this->get('/dashboard')->assertOk()->assertDontSee('Cedar Catering');
+        $this->get('/dashboard')->assertOk()->assertDontSee('Catering Cedro');
     }
 
     /**

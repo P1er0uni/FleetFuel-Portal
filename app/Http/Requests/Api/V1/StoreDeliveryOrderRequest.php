@@ -29,6 +29,20 @@ class StoreDeliveryOrderRequest extends WebStoreDeliveryOrderRequest
     }
 
     /**
+     * The API keeps the documented English messages (SetApiLocale).
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'company_id.required' => 'Choose a company.',
+            'company_id.exists' => 'Choose an active company.',
+            'company_id.prohibited' => 'The company is set from your account and cannot be chosen.',
+        ];
+    }
+
+    /**
      * @return list<mixed>
      */
     protected function timeRules(): array

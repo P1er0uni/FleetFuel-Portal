@@ -52,10 +52,10 @@ class AbilitiesAndPoliciesTest extends TestCase
     {
         $token = $this->tokenFor('manager.atlas@fleetfuel.test');
 
-        $this->withToken($token)->patchJson(self::URI.$this->card('Atlas Logistics')->id)->assertOk();
+        $this->withToken($token)->patchJson(self::URI.$this->card('Logística Atlas')->id)->assertOk();
 
         $this->startNewRequestCycle();
-        $this->withToken($token)->patchJson(self::URI.$this->card('Cedar Catering')->id)
+        $this->withToken($token)->patchJson(self::URI.$this->card('Catering Cedro')->id)
             ->assertNotFound()
             ->assertJsonPath('error.code', 'not_found');
     }
@@ -64,7 +64,7 @@ class AbilitiesAndPoliciesTest extends TestCase
     {
         $token = $this->tokenFor('operator.beirut@fleetfuel.test');
 
-        $this->withToken($token)->patchJson(self::URI.$this->card('Atlas Logistics')->id)
+        $this->withToken($token)->patchJson(self::URI.$this->card('Logística Atlas')->id)
             ->assertForbidden()
             ->assertJsonPath('error.code', 'forbidden');
     }
@@ -75,7 +75,7 @@ class AbilitiesAndPoliciesTest extends TestCase
         $operator = User::query()->where('email', 'operator.beirut@fleetfuel.test')->firstOrFail();
         $token = $operator->createToken('forged', ['*'])->plainTextToken;
 
-        $this->withToken($token)->patchJson(self::URI.$this->card('Atlas Logistics')->id)
+        $this->withToken($token)->patchJson(self::URI.$this->card('Logística Atlas')->id)
             ->assertForbidden()
             ->assertJsonPath('error.code', 'forbidden');
     }
@@ -85,19 +85,19 @@ class AbilitiesAndPoliciesTest extends TestCase
         $manager = User::query()->where('email', 'manager.atlas@fleetfuel.test')->firstOrFail();
         $token = $manager->createToken('read-only', ['cards:read'])->plainTextToken;
 
-        $this->withToken($token)->patchJson(self::URI.$this->card('Atlas Logistics')->id)->assertForbidden();
+        $this->withToken($token)->patchJson(self::URI.$this->card('Logística Atlas')->id)->assertForbidden();
 
         // The ability check runs before the tenant-scoped lookup, so even
         // another company's card answers 403 here rather than 404.
         $this->startNewRequestCycle();
-        $this->withToken($token)->patchJson(self::URI.$this->card('Cedar Catering')->id)->assertForbidden();
+        $this->withToken($token)->patchJson(self::URI.$this->card('Catering Cedro')->id)->assertForbidden();
     }
 
     public function test_an_admin_token_reaches_every_company(): void
     {
         $token = $this->tokenFor('admin@fleetfuel.test');
 
-        foreach (['Atlas Logistics', 'Cedar Catering'] as $company) {
+        foreach (['Logística Atlas', 'Catering Cedro'] as $company) {
             $this->startNewRequestCycle();
             $this->withToken($token)->patchJson(self::URI.$this->card($company)->id)->assertOk();
         }
@@ -108,7 +108,7 @@ class AbilitiesAndPoliciesTest extends TestCase
         $token = $this->tokenFor('manager.atlas@fleetfuel.test');
         User::query()->where('email', 'manager.atlas@fleetfuel.test')->firstOrFail()->forceFill(['is_active' => false])->save();
 
-        $this->withToken($token)->patchJson(self::URI.$this->card('Atlas Logistics')->id)
+        $this->withToken($token)->patchJson(self::URI.$this->card('Logística Atlas')->id)
             ->assertUnauthorized()
             ->assertJsonPath('error.code', 'unauthenticated');
     }

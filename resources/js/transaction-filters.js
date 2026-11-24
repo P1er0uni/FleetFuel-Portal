@@ -104,9 +104,9 @@ function init($form) {
             .append($('<p class="mb-2"></p>').text(extra.length > 0 ? `${failure.message} ${extra.join(' ')}` : failure.message));
 
         if (failure.kind === 'session') {
-            $alert.append($('<a class="btn btn-sm btn-primary"></a>').attr('href', loginUrl).text('Sign in again'));
+            $alert.append($('<a class="btn btn-sm btn-primary"></a>').attr('href', loginUrl).text('Iniciar sesión de nuevo'));
         } else if (failure.retry) {
-            $alert.append($('<button type="button" class="btn btn-sm btn-outline-danger" data-retry></button>').text('Try again'));
+            $alert.append($('<button type="button" class="btn btn-sm btn-outline-danger" data-retry></button>').text('Reintentar'));
         }
 
         // The old totals and rows go: they no longer describe the filters.
@@ -122,7 +122,7 @@ function init($form) {
 
         lastQuery = query;
         setBusy(true);
-        $status.text('Loading purchases…');
+        $status.text('Cargando compras…');
 
         latest.run(
             () => $.ajax({

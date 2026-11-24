@@ -40,4 +40,10 @@ class ListTransactionsRequest extends PaginatedListRequest
     {
         return [...parent::after(), $this->dateRangeLimit()];
     }
+
+    /** The API keeps the documented English messages (SetApiLocale). */
+    protected function dateRangeLimitMessage(): string
+    {
+        return 'The date range may cover at most 366 days.';
+    }
 }

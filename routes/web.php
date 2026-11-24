@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DeliveryOrderController;
 use App\Http\Controllers\Web\DriverController;
 use App\Http\Controllers\Web\ExchangeRateController;
+use App\Http\Controllers\Web\FleetController;
 use App\Http\Controllers\Web\FuelCardController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProductPriceController;
@@ -92,6 +93,17 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('cards', FuelCardController::class)->except(['destroy']);
         Route::patch('/cards/{card}/limits', [FuelCardController::class, 'updateLimits'])->name('cards.limits');
         Route::patch('/cards/{card}/status', [FuelCardController::class, 'updateStatus'])->name('cards.status');
+
+        // Fleets: a company's sub-grouping of vehicles, drivers and cards
+        // with an aggregated monthly quota and basic fuel rules
+        // (docs/sdd/fase-1-flotas/spec.md). Deleting a fleet only ungroups
+        // its members (SET NULL); the audit keeps the history.
+        Route::resource('fleets', FleetController::class);
+        Route::patch('/fleets/{fleet}/status', [FleetController::class, 'updateStatus'])->name('fleets.status');
+        Route::post('/fleets/{fleet}/rules', [FleetController::class, 'storeRule'])->name('fleets.rules.store');
+        Route::delete('/fleets/{fleet}/rules/{rule}', [FleetController::class, 'destroyRule'])->name('fleets.rules.destroy');
+        Route::post('/fleets/{fleet}/assign', [FleetController::class, 'assign'])->name('fleets.assign');
+        Route::post('/fleets/{fleet}/unassign', [FleetController::class, 'unassign'])->name('fleets.unassign');
 
         // Diesel deliveries. Managers request and may cancel their own
         // pending orders; only admins schedule, dispatch and deliver

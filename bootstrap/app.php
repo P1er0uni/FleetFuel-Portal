@@ -8,6 +8,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RejectMalformedJson;
+use App\Http\Middleware\SetApiLocale;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
@@ -43,7 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
         ]);
 
-        $middleware->api(prepend: [RejectMalformedJson::class]);
+        $middleware->api(prepend: [SetApiLocale::class, RejectMalformedJson::class]);
 
         // Run the account, role and token-ability checks right after
         // authentication and before route-model binding: a station operator

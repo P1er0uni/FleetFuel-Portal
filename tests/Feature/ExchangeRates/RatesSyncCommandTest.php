@@ -47,7 +47,7 @@ class RatesSyncCommandTest extends TestCase
         Http::fake(['open.er-api.com/*' => Http::response($this->body())]);
 
         $this->artisan('rates:sync')
-            ->expectsOutputToContain('Stored the Provider observation of 89500.00000000 LBP per USD at '.self::OBSERVED)
+            ->expectsOutputToContain('Se almacenó la observación de Proveedor de 89500.00000000 LBP por USD a las '.self::OBSERVED)
             ->assertSuccessful();
 
         $rate = ExchangeRate::query()->sole();
@@ -74,7 +74,7 @@ class RatesSyncCommandTest extends TestCase
 
         $this->travelTo(CarbonImmutable::parse('2026-09-28T15:00:00Z'));
         $this->artisan('rates:sync')
-            ->expectsOutputToContain('Nothing fetched')
+            ->expectsOutputToContain('No se descargó nada')
             ->assertSuccessful();
 
         Http::assertSentCount(1);
@@ -91,7 +91,7 @@ class RatesSyncCommandTest extends TestCase
 
         $this->travelTo(CarbonImmutable::parse('2026-09-28T09:30:00Z'));
         $this->artisan('rates:sync', ['--force' => true])
-            ->expectsOutputToContain('was already stored; nothing changed')
+            ->expectsOutputToContain('ya estaba almacenada; no cambió nada')
             ->assertSuccessful();
 
         Http::assertSentCount(2);
@@ -113,7 +113,7 @@ class RatesSyncCommandTest extends TestCase
 
         $log = Log::spy();
         $this->artisan('rates:sync', ['--force' => true])
-            ->expectsOutputToContain('Kept the stored value')
+            ->expectsOutputToContain('Se conservó el valor almacenado')
             ->assertSuccessful();
 
         $this->assertSame('89500.00000000', ExchangeRate::query()->sole()->rate);
@@ -160,7 +160,7 @@ class RatesSyncCommandTest extends TestCase
         Http::fake(['open.er-api.com/*' => Http::response('', 503)]);
 
         $this->artisan('rates:sync')
-            ->expectsOutputToContain('Stored rates are unchanged')
+            ->expectsOutputToContain('Las tasas almacenadas no cambian')
             ->assertFailed();
 
         Http::assertSentCount(3);
@@ -190,7 +190,7 @@ class RatesSyncCommandTest extends TestCase
         $this->assertSame('rate_limited', $this->state('live')->last_error_code);
 
         $this->travelTo(CarbonImmutable::parse('2026-09-28T09:10:00Z'));
-        $this->artisan('rates:sync')->expectsOutputToContain('Nothing fetched')->assertSuccessful();
+        $this->artisan('rates:sync')->expectsOutputToContain('No se descargó nada')->assertSuccessful();
 
         Http::assertSentCount(1);
         $this->assertSame(0, ExchangeRate::query()->count());
@@ -204,10 +204,10 @@ class RatesSyncCommandTest extends TestCase
         $earlier = ExchangeRate::factory()->create(['effective_at' => CarbonImmutable::parse('2026-09-27T00:00:00Z')]);
 
         $this->artisan('rates:sync')
-            ->expectsOutputToContain('Stored the Fixture (synthetic) observation of 89500.00000000 LBP per USD at 2026-09-28T00:00:00Z')
+            ->expectsOutputToContain('Se almacenó la observación de Fixture (sintética) de 89500.00000000 LBP por USD a las 2026-09-28T00:00:00Z')
             ->assertSuccessful();
         $this->travelTo(CarbonImmutable::parse('2026-09-28T23:59:00Z'));
-        $this->artisan('rates:sync')->expectsOutputToContain('Nothing fetched')->assertSuccessful();
+        $this->artisan('rates:sync')->expectsOutputToContain('No se descargó nada')->assertSuccessful();
         $this->travelTo(CarbonImmutable::parse('2026-09-29T01:00:00Z'));
         $this->artisan('rates:sync')->assertSuccessful();
 
@@ -232,7 +232,7 @@ class RatesSyncCommandTest extends TestCase
         $lock->get();
 
         $this->artisan('rates:sync')
-            ->expectsOutputToContain('Another rates:sync run is in progress')
+            ->expectsOutputToContain('Otra corrida de rates:sync está en progreso')
             ->assertSuccessful();
 
         Http::assertNothingSent();

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\Driver;
+use App\Models\Fleet;
 use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use App\Models\User;
@@ -15,6 +16,7 @@ use App\Models\Vehicle;
 use App\Repositories\ReportRepository;
 use App\Services\PriceResolver;
 use App\Support\BusinessMonth;
+use App\Support\FleetQuota;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +69,10 @@ class DashboardController extends Controller
             ->visibleTo($user)
             ->whereIn('status', self::OPEN_DELIVERIES);
 
+        // The fleet widget (fase 1): each fleet's consumption this Beirut
+        // month against its quotas, in one query for the whole list.
+        $fleets = Fleet::query()->visibleTo($user)->orderBy('name')->get();
+
         return view('dashboard', [
             'user' => $user->loadMissing('company'),
             'monthStart' => CarbonImmutable::parse($month),
@@ -78,6 +84,8 @@ class DashboardController extends Controller
             'drivers' => Driver::query()->visibleTo($user)->where('is_active', true)->count(),
             'activeCards' => (int) ($cardCounts[CardStatus::Active->value] ?? 0),
             'blockedCards' => (int) ($cardCounts[CardStatus::Blocked->value] ?? 0),
+            'fleets' => $fleets,
+            'fleetQuotas' => FleetQuota::many($fleets),
             // Blocked cards and cards at or over a limit this month (one SQL statement).
             'quotaWarnings' => $reports->quotaExceptions($user->isAdmin() ? null : $user->company_id, $month),
             'openDeliveryCount' => (clone $openDeliveries)->count(),

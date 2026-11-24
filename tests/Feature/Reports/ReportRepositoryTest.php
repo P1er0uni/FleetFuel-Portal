@@ -7,11 +7,14 @@ use App\Enums\ProductCode;
 use App\Enums\RateSource;
 use App\Models\DeliveryOrder;
 use App\Models\ExchangeRate;
+use App\Models\Fleet;
+use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use App\Models\ProductPrice;
 use App\Models\User;
 use App\Repositories\ReportRepository;
 use App\Services\FuelCardService;
+use App\Support\BusinessMonth;
 use App\Support\ReportScope;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
@@ -57,8 +60,8 @@ class ReportRepositoryTest extends TestCase
         $rows = $this->reports->consumption($this->scope(), 'company');
 
         $this->assertSame([
-            [$this->atlas()->id, 'Atlas Logistics', 9, '515.00', '41675000.00', $this->storedUsd($this->atlas()->id)],
-            [$this->cedar()->id, 'Cedar Catering', 6, '325.00', '26775000.00', $this->storedUsd($this->cedar()->id)],
+            [$this->atlas()->id, 'Logística Atlas', 9, '515.00', '41675000.00', $this->storedUsd($this->atlas()->id)],
+            [$this->cedar()->id, 'Catering Cedro', 6, '325.00', '26775000.00', $this->storedUsd($this->cedar()->id)],
         ], array_map(fn (array $row): array => [$row['group_id'], $row['label'], $row['purchases'], $row['liters'], $row['amount_lbp'], $row['amount_usd']], $rows));
     }
 
@@ -76,22 +79,22 @@ class ReportRepositoryTest extends TestCase
             [$this->vehicle('ATL-102')->id, 'ATL-102', '170.00'],
             [$this->vehicle('ATL-104')->id, 'ATL-104', '95.00'],
             [$this->vehicle('CED-202')->id, 'CED-202', '75.00'],
-            [null, 'No vehicle (card only)', '60.00'],
+            [null, 'Sin vehículo (solo tarjeta)', '60.00'],
         ], array_map(fn (array $row): array => [$row['group_id'], $row['label'], $row['liters']], $rows));
     }
 
     public function test_consumption_by_product_and_equal_names_never_merge(): void
     {
         $this->assertSame(
-            [['Diesel (DIESEL)', '635.00'], ['Unleaded 95 (ULP95)', '130.00'], ['Unleaded 98 (ULP98)', '75.00']],
+            [['Diésel (DIESEL)', '635.00'], ['Sin plomo 95 (ULP95)', '130.00'], ['Sin plomo 98 (ULP98)', '75.00']],
             array_map(fn (array $row): array => [$row['label'], $row['liters']], $this->reports->consumption($this->scope(), 'product')),
         );
 
         // Two companies with the same name stay two groups, told apart by ID.
-        $this->cedar()->forceFill(['name' => 'Atlas Logistics'])->save();
+        $this->cedar()->forceFill(['name' => 'Logística Atlas'])->save();
         $rows = $this->reports->consumption($this->scope(), 'company');
 
-        $this->assertSame(['Atlas Logistics', 'Atlas Logistics'], array_column($rows, 'label'));
+        $this->assertSame(['Logística Atlas', 'Logística Atlas'], array_column($rows, 'label'));
         $this->assertSame(['515.00', '325.00'], array_column($rows, 'liters'));
         $this->assertNotSame($rows[0]['group_id'], $rows[1]['group_id']);
     }
@@ -145,7 +148,7 @@ class ReportRepositoryTest extends TestCase
     public function test_top_stations_order_is_stable(): void
     {
         $this->assertSame(
-            [['North Demo Station', '425.00'], ['Harbor Demo Station', '415.00']],
+            [['Estación Demo Norte', '425.00'], ['Estación Demo Puerto', '415.00']],
             array_map(fn (array $row): array => [$row['station'], $row['liters']], $this->reports->topStations($this->scope())),
         );
 
@@ -163,8 +166,8 @@ class ReportRepositoryTest extends TestCase
     {
         $exceptions = $this->reports->quotaExceptions(null, '2026-09-01');
         $this->assertSame(['FF-ATLAS-BLOCKED', 'FF-ATLAS-H02'], array_column($exceptions, 'card_no'));
-        $this->assertSame(['Blocked: every purchase is declined.'], $exceptions[0]['reasons']);
-        $this->assertSame(["Over the liter limit: 250.00 L used of 200.00 L (the limit was lowered below this month's usage)."], $exceptions[1]['reasons']);
+        $this->assertSame(['Bloqueada: toda compra es rechazada.'], $exceptions[0]['reasons']);
+        $this->assertSame(['Sobre el límite de litros: 250.00 L usados de 200.00 L (el límite se bajó por debajo del consumo de este mes).'], $exceptions[1]['reasons']);
 
         // Exactly at the limit: zero left counts as an exception.
         app(FuelCardService::class)->updateLimits($this->card('FF-ATLAS-H01'), '170.00', '400.00', $this->admin());
@@ -173,7 +176,7 @@ class ReportRepositoryTest extends TestCase
 
         $exceptions = $this->reports->quotaExceptions(null, '2026-09-01');
         $this->assertSame(['FF-ATLAS-H01', 'FF-ATLAS-H02'], array_column($exceptions, 'card_no'));
-        $this->assertSame(['Liter limit reached: 170.00 of 170.00 L used, nothing left this month.'], $exceptions[0]['reasons']);
+        $this->assertSame(['Límite de litros alcanzado: 170.00 de 170.00 L usados, no queda nada este mes.'], $exceptions[0]['reasons']);
 
         // A declined purchase is not consumption and changes no counter.
         $consumption = $this->reports->consumption($this->scope(), 'company');
@@ -271,6 +274,65 @@ class ReportRepositoryTest extends TestCase
         $this->assertSame([], $this->reports->deliverySla(null, $from, CarbonImmutable::parse('2026-09-19T10:59:59Z')));
     }
 
+    /**
+     * The fleet filter (fase 1, D8) keeps only the purchases paid with the
+     * fleet's cards, in every report that reads the ledger or the monthly
+     * counters. Expected figures are summed independently from the stored
+     * rows, and a fleet of another company matches nothing for a manager.
+     */
+    public function test_the_fleet_filter_applies_to_every_report(): void
+    {
+        $fleet = Fleet::factory()->create(['company_id' => $this->atlas()->id, 'name' => 'Camiones']);
+        $fleetCardIds = [$this->card('FF-ATLAS-001')->id, $this->card('FF-ATLAS-H02')->id];
+        FuelCard::query()->whereKey($fleetCardIds)->update(['fleet_id' => $fleet->id]);
+
+        $inRange = fn () => FuelTransaction::query()
+            ->where('transacted_at', '>=', CarbonImmutable::parse(self::MONTH_FROM))
+            ->where('transacted_at', '<', CarbonImmutable::parse(self::MONTH_TO));
+        $fleetPurchases = $inRange()->whereIn('fuel_card_id', $fleetCardIds)->pluck('id');
+        $this->assertGreaterThan(0, $fleetPurchases->count(), 'the seed must give the fleet some purchases');
+
+        $fleetScope = ReportScope::for($this->admin(), CarbonImmutable::parse(self::MONTH_FROM), CarbonImmutable::parse(self::MONTH_TO), null, $fleet->id);
+
+        // Consumption: one company row, and its figures are the fleet's own.
+        $rows = $this->reports->consumption($fleetScope, 'company');
+        $this->assertSame([$this->atlas()->id], array_column($rows, 'group_id'));
+        $this->assertSame($fleetPurchases->count(), $rows[0]['purchases']);
+        $this->assertSame($this->storedLiters($fleetPurchases->all()), $rows[0]['liters']);
+
+        // Top stations, overfills, rapid fills and efficiency: only the fleet's purchases.
+        $this->assertSame(
+            $fleetPurchases->count(),
+            array_sum(array_column($this->reports->topStations($fleetScope), 'purchases')),
+        );
+        $this->assertSame([], array_diff(array_column($this->reports->tankOverfills($fleetScope), 'id'), $fleetPurchases->all()));
+        $this->assertSame([], array_diff(array_column($this->reports->rapidFills($fleetScope), 'id'), $fleetPurchases->all()));
+        $this->assertSame([], array_diff(array_column($this->reports->efficiency($fleetScope), 'id'), $fleetPurchases->all()));
+
+        // Quota exceptions: only the fleet's cards.
+        $month = BusinessMonth::for(CarbonImmutable::now());
+        $exceptions = $this->reports->quotaExceptions(null, $month, $fleet->id);
+        $this->assertSame([], array_diff(array_column($exceptions, 'card_id'), $fleetCardIds));
+
+        // A Cedar fleet in the Atlas manager's scope matches nothing.
+        $cedarFleet = Fleet::factory()->create(['company_id' => $this->cedar()->id]);
+        $managerScope = ReportScope::for($this->atlasManager(), CarbonImmutable::parse(self::MONTH_FROM), CarbonImmutable::parse(self::MONTH_TO), null, $cedarFleet->id);
+        $this->assertSame([], $this->reports->consumption($managerScope, 'company'));
+    }
+
+    /**
+     * The liters of the given purchases, summed in PHP from the stored rows.
+     *
+     * @param  list<int>  $purchaseIds
+     */
+    private function storedLiters(array $purchaseIds): string
+    {
+        return (string) FuelTransaction::query()->whereKey($purchaseIds)
+            ->pluck('liters')
+            ->reduce(fn (BigDecimal $total, string $liters): BigDecimal => $total->plus($liters), BigDecimal::zero())
+            ->toScale(2);
+    }
+
     private function scope(?User $user = null, ?int $company = null, string $from = self::MONTH_FROM, string $to = self::MONTH_TO): ReportScope
     {
         return ReportScope::for($user ?? $this->admin(), CarbonImmutable::parse($from), CarbonImmutable::parse($to), $company);
@@ -291,8 +353,8 @@ class ReportRepositoryTest extends TestCase
     private function purchase(string $card, string $station, string $liters, string $at, ?int $odometer): FuelTransaction
     {
         [$stationName, $operator] = $station === 'harbor'
-            ? ['Harbor Demo Station', 'operator.beirut@fleetfuel.test']
-            : ['North Demo Station', 'operator.tripoli@fleetfuel.test'];
+            ? ['Estación Demo Puerto', 'operator.beirut@fleetfuel.test']
+            : ['Estación Demo Norte', 'operator.tripoli@fleetfuel.test'];
 
         return app(LedgerFixtureBuilder::class)->recordPurchase(
             $this->card($card), $this->station($stationName), $this->account($operator), $this->product(ProductCode::Diesel),

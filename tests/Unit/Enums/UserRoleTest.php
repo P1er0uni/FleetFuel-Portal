@@ -44,6 +44,6 @@ class UserRoleTest extends TestCase
         $this->assertSame('dashboard', UserRole::Admin->homeRoute());
         $this->assertSame('dashboard', UserRole::CompanyManager->homeRoute());
         $this->assertSame('station.home', UserRole::StationOperator->homeRoute());
-        $this->assertSame('Company manager', UserRole::CompanyManager->label());
+        $this->assertSame('Gerente de empresa', UserRole::CompanyManager->label());
     }
 }

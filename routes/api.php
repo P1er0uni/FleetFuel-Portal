@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\CardBalanceController;
 use App\Http\Controllers\Api\V1\DeliveryOrderController;
 use App\Http\Controllers\Api\V1\DriverController;
+use App\Http\Controllers\Api\V1\FleetController;
 use App\Http\Controllers\Api\V1\FuelCardController;
 use App\Http\Controllers\Api\V1\ProductPriceController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -63,6 +64,19 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('vehicles', [VehicleController::class, 'store'])->middleware('abilities:fleet:write')->name('vehicles.store');
             Route::get('drivers', [DriverController::class, 'index'])->middleware('abilities:fleet:read')->name('drivers.index');
             Route::post('drivers', [DriverController::class, 'store'])->middleware('abilities:fleet:write')->name('drivers.store');
+
+            // Fleets (docs/sdd/fase-1-flotas/spec.md): a company's
+            // sub-grouping of vehicles, drivers and cards. {fleet} is
+            // tenant-scoped like {card}.
+            Route::get('fleets', [FleetController::class, 'index'])->middleware('abilities:fleet:read')->name('fleets.index');
+            Route::post('fleets', [FleetController::class, 'store'])->middleware('abilities:fleet:write')->name('fleets.store');
+            Route::get('fleets/{fleet}', [FleetController::class, 'show'])->middleware('abilities:fleet:read')->whereNumber('fleet')->name('fleets.show');
+            Route::put('fleets/{fleet}', [FleetController::class, 'update'])->middleware('abilities:fleet:write')->whereNumber('fleet')->name('fleets.update');
+            Route::delete('fleets/{fleet}', [FleetController::class, 'destroy'])->middleware('abilities:fleet:write')->whereNumber('fleet')->name('fleets.destroy');
+            Route::get('fleets/{fleet}/usage', [FleetController::class, 'usage'])->middleware('abilities:fleet:read')->whereNumber('fleet')->name('fleets.usage');
+            Route::get('fleets/{fleet}/vehicles', [FleetController::class, 'vehicles'])->middleware('abilities:fleet:read')->whereNumber('fleet')->name('fleets.vehicles');
+            Route::get('fleets/{fleet}/drivers', [FleetController::class, 'drivers'])->middleware('abilities:fleet:read')->whereNumber('fleet')->name('fleets.drivers');
+            Route::get('fleets/{fleet}/cards', [FleetController::class, 'cards'])->middleware('abilities:fleet:read')->whereNumber('fleet')->name('fleets.cards');
 
             Route::get('delivery-orders', [DeliveryOrderController::class, 'index'])->middleware('abilities:deliveries:read')->name('delivery-orders.index');
             Route::post('delivery-orders', [DeliveryOrderController::class, 'store'])->middleware('abilities:deliveries:write')->name('delivery-orders.store');

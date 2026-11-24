@@ -59,8 +59,8 @@ class ExchangeRateController extends Controller
 
         return redirect()->route('integrations.exchange-rates')->with(
             'status',
-            'Override of '.Display::decimal($override->rate, 8).' LBP per USD saved, valid from '
-                .Display::businessTime($override->effective_at).' to '.Display::businessTime($override->expires_at).' (Beirut time).',
+            'Ajuste de '.Display::decimal($override->rate, 8).' LBP por USD guardado, válido de '
+                .Display::businessTime($override->effective_at).' a '.Display::businessTime($override->expires_at).' (hora de Beirut).',
         );
     }
 }

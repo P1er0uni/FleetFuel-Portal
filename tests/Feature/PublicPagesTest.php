@@ -13,7 +13,7 @@ class PublicPagesTest extends TestCase
             ->assertOk()
             ->assertViewIs('home')
             ->assertSee('FleetFuel Portal')
-            ->assertSee('fictional companies')
+            ->assertSee('ficticio')
             ->assertSee(route('login'));
     }
 

@@ -1,6 +1,6 @@
 # Progress and session handoff
 
-Updated: 2026-10-02
+Updated: 2026-11-24
 
 ## Current state
 
@@ -89,7 +89,48 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
-## Most recent session: public repository and branch protection
+## Most recent session: fleets, fase 1 (SDD)
+
+**Date:** 2026-11-24.
+
+**Goal and actual state:**
+- Goal: the user's spec `fase-1-flotas.md` (landed in `docs/sdd/fase-1-flotas/spec.md`): fleets as a company's sub-grouping of vehicles, drivers and cards, with an aggregated monthly quota and basic fuel rules, enforced during POS ingestion.
+- Result: **all seven plan tasks done** (T1–T3 in an earlier session; T4–T7 in this one), and the full suite is green locally.
+- Environment note: this session ran on Windows without Docker or admin rights. PHP 8.3.37 NTS, Composer and MySQL 8.4.13 were installed as portable user-local tools (`~/tools/php-8.3`, `~/tools/mysql-8.4`, restartable with `~/tools/start-fleetfuel-mysql.bat`); the MySQL users `fleetfuel`/`fleetfuel_test` were created with the credentials already in `.env`/`.env.testing`. A stray SQL SHUTDOWN killed the first MySQL instance mid-session; it was restarted and the users recreated (the test databases are rebuilt by RefreshDatabase, so nothing was lost).
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan test tests/Feature/Api/FleetsApiTest.php` (new, T4) | **11 passed / 248 assertions**; every response validated against openapi.json |
+| `php artisan test tests/Feature/Api/OpenApiContractTest.php tests/Feature/Api/FleetApiTest.php tests/Feature/Api/AbilitiesAndPoliciesTest.php` | 21 passed / 461 assertions (route/ability/role parity with the new fleet operations) |
+| `php artisan test tests/Feature/Fleets tests/Feature/Auth/TenantIsolationTest.php tests/Feature/DocumentationParityTest.php` | 43 passed / 459 assertions |
+| `php artisan test tests/Feature/Database` (after the ER-diagram fix) | 35 passed / 107 assertions (`ErDiagramTest` green again) |
+| `php artisan test tests/Feature/Reports tests/Feature/Api/ReportApiTest.php` (T5) | 26 passed / 399 assertions |
+| `php artisan test tests/Feature/Dashboard` (T6) | 7 passed / 61 assertions (the N+1 query-count test included) |
+| `vendor/bin/pint --test` over the changed files, then `vendor/bin/phpstan analyse` | Pint PASS (after it fixed import order and FQCNs); Larastan `[OK] No errors` |
+| `vendor/bin/phpstan analyse -c tools/pos-simulator/phpstan.neon` | `[OK] No errors` |
+| `php artisan test` (full suite, final) | **635 passed / 6470 assertions** (267.34 s) |
+
+### What changed
+
+- **T4 — Fleet API:** `Api\V1\FleetController` (list, create, detail with rules and usage, update, delete, usage, member lists), API requests extending the web ones (`RejectsUnknownFields`, English messages, JSON-integer company_id), routes with `fleet:read`/`fleet:write`, `FleetResource`/`FleetRuleResource`, `FleetQuota::toArray()`. `openapi.json` 0.11.0: six paths, nine implemented operations, schemas `Fleet`, `FleetDetail`, `FleetRule`, `FleetUsage`, `FleetCreateRequest`, `FleetUpdateRequest`.
+- **T5 — Reports:** `ReportScope` gains `fleetId`; the filter (on `fuel_cards.fleet_id`, D8) applies to consumption, top stations, quota exceptions, anomalies and efficiency; the report header gains a "Flota" select; `GET /reports/consumption` accepts and documents `fleet_id`; a fleet outside the chosen company is a validation error.
+- **T6 — Dashboard:** a "Consumo por flota" widget (liters of the Beirut month, quota percentage, state badge) with a fixed query count.
+- **Fixes found on the way:** `FleetService` rounded `monthly_quota_liters` to 2 decimals (validation and column allow 3); the ER diagram in `docs/03-DATA-MODEL.md` did not draw the five fleet relationships (`ErDiagramTest` was red — T1 work had never run the full suite); the rapid-fills and efficiency CTEs needed `fuel_card_id` projected for the outer fleet filter.
+- **Docs:** `docs/05-API-CONTRACT.md` ("Fleets (fase 1)"), `docs/03-DATA-MODEL.md` (diagram and fleet tables), `CHANGELOG.md`, and the evidence per task in `docs/sdd/fase-1-flotas/plan.md`.
+
+### Not run or not verified
+
+- The 14 JavaScript tests and the Vite build: no JS file changed in this phase; CI runs them on push.
+- Newman/Postman and the browser checks: no fleet screens' markup changed beyond the report header and the dashboard widget; the phone-overflow guard for the new widget is the existing manual sweep.
+- The whole phase is uncommitted on `main`'s working tree; it reaches GitHub only through a pull request that passes "Setup and quality gates".
+
+**Suggested commit message:** `feat: add fleets with rules, quotas, API, report filter and dashboard widget`.
+
+**One concept to explain:** a filter that must never widen a report is enforced twice. The request validation refuses a fleet outside the chosen company with a clear error, and even if something slips past it, the SQL still intersects the fleet's cards with the caller's company scope, so a foreign fleet matches nothing. The validation gives the user a helpful message; the scope gives the guarantee.
+
+## Earlier session: public repository and branch protection
 
 **Date:** 2026-10-02.
 

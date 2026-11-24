@@ -31,9 +31,9 @@ trait ResolvesCompany
     protected function companyMessages(): array
     {
         return [
-            'company_id.required' => 'Choose a company.',
-            'company_id.exists' => 'Choose an active company.',
-            'company_id.prohibited' => 'The company is set from your account and cannot be chosen.',
+            'company_id.required' => 'Elige una empresa.',
+            'company_id.exists' => 'Elige una empresa activa.',
+            'company_id.prohibited' => 'La empresa se toma de tu cuenta y no puede elegirse.',
         ];
     }
 

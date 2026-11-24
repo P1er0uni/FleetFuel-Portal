@@ -11,27 +11,27 @@ class ActivateUser extends Command
 {
     protected $signature = 'users:activate {email : Email of the account to re-enable}';
 
-    protected $description = 'Re-enable a disabled account (revoked API tokens stay revoked)';
+    protected $description = 'Reactiva una cuenta desactivada (los tokens de API revocados siguen revocados)';
 
     public function handle(UserAccountService $accounts): int
     {
         $user = User::query()->where('email', Str::lower(trim((string) $this->argument('email'))))->first();
 
         if ($user === null) {
-            $this->error('No account has that email.');
+            $this->error('Ninguna cuenta tiene ese correo.');
 
             return self::FAILURE;
         }
 
         if ($user->is_active) {
-            $this->info('That account is already active; nothing changed.');
+            $this->info('Esa cuenta ya está activa; no cambió nada.');
 
             return self::SUCCESS;
         }
 
         $accounts->activate($user);
 
-        $this->info("Re-enabled {$user->email}. The user signs in again with their existing password.");
+        $this->info("Se reactivó {$user->email}. El usuario inicia sesión de nuevo con su contraseña existente.");
 
         return self::SUCCESS;
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Fleet;
 
 use App\Enums\FuelType;
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\Vehicle;
 use App\Rules\DecimalString;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Rule;
 class StoreVehicleRequest extends FormRequest
 {
     use ResolvesCompany;
+    use ResolvesFleet;
 
     public function authorize(): bool
     {
@@ -35,6 +37,7 @@ class StoreVehicleRequest extends FormRequest
             'fuel_type' => ['required', Rule::enum(FuelType::class)],
             'tank_capacity_l' => ['required', new DecimalString(8, allowZero: false)],
             'odometer_km' => ['nullable', 'integer', 'min:0', 'max:9999999'],
+            'fleet_id' => $this->fleetRules($this->targetCompanyId()),
         ];
     }
 
@@ -43,8 +46,8 @@ class StoreVehicleRequest extends FormRequest
      */
     public function messages(): array
     {
-        return $this->companyMessages() + [
-            'plate_no.regex' => 'Use letters, digits, spaces and hyphens only.',
+        return $this->companyMessages() + $this->fleetMessages() + [
+            'plate_no.regex' => 'Usa solo letras, dígitos, espacios y guiones.',
         ];
     }
 }

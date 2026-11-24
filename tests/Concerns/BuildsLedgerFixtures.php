@@ -94,7 +94,7 @@ trait BuildsLedgerFixtures
     {
         $builder = app(LedgerFixtureBuilder::class);
         $card = FuelCard::query()->where('card_no', 'FF-CEDAR-FLEX')->firstOrFail();
-        $station = Station::query()->where('name', 'Harbor Demo Station')->firstOrFail();
+        $station = Station::query()->where('name', 'Estación Demo Puerto')->firstOrFail();
         $operator = User::query()->where('email', 'operator.beirut@fleetfuel.test')->firstOrFail();
         $diesel = Product::query()->where('code', ProductCode::Diesel->value)->firstOrFail();
 

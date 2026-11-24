@@ -16,7 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureUserIsActive
 {
-    private const DISABLED = 'Your account has been disabled. Contact an administrator.';
+    private const DISABLED = 'Tu cuenta ha sido desactivada. Contacta a un administrador.';
 
     public function handle(Request $request, Closure $next): Response
     {

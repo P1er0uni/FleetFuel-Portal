@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Fleet;
 
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\Driver;
 use App\Models\FuelCard;
 use App\Models\Product;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rule;
 class StoreFuelCardRequest extends FormRequest
 {
     use ResolvesCompany;
+    use ResolvesFleet;
 
     public function authorize(): bool
     {
@@ -41,6 +43,7 @@ class StoreFuelCardRequest extends FormRequest
             // DECIMAL(12,2) and DECIMAL(18,2); empty means unlimited.
             'monthly_limit_l' => ['nullable', new DecimalString(10)],
             'monthly_limit_usd' => ['nullable', new DecimalString(16)],
+            'fleet_id' => $this->fleetRules($this->targetCompanyId()),
         ];
     }
 
@@ -49,10 +52,10 @@ class StoreFuelCardRequest extends FormRequest
      */
     public function messages(): array
     {
-        return $this->companyMessages() + [
-            'vehicle_id.exists' => 'Choose an active vehicle of this company.',
-            'driver_id.exists' => 'Choose an active driver of this company.',
-            'allowed_product_id.exists' => 'Choose an active product.',
+        return $this->companyMessages() + $this->fleetMessages() + [
+            'vehicle_id.exists' => 'Elige un vehículo activo de esta empresa.',
+            'driver_id.exists' => 'Elige un conductor activo de esta empresa.',
+            'allowed_product_id.exists' => 'Elige un producto activo.',
         ];
     }
 

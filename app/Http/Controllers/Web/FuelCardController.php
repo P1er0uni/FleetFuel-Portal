@@ -13,6 +13,7 @@ use App\Http\Requests\Fleet\UpdateCardLimitsRequest;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\Fleet;
 use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use App\Models\Product;
@@ -90,9 +91,10 @@ class FuelCardController extends Controller
             $request->validated('monthly_limit_l'),
             $request->validated('monthly_limit_usd'),
             $this->actor($request),
+            $request->fleet(),
         );
 
-        return redirect()->route('cards.show', $card)->with('status', "Card {$card->card_no} issued.");
+        return redirect()->route('cards.show', $card)->with('status', "Tarjeta {$card->card_no} emitida.");
     }
 
     public function show(Request $request, FuelCard $card, FuelCardService $cards): View
@@ -137,9 +139,9 @@ class FuelCardController extends Controller
 
     public function update(UpdateCardAssignmentRequest $request, FuelCard $card, FuelCardService $cards): RedirectResponse
     {
-        $cards->updateAssignment($card, $request->vehicle(), $request->driver(), $request->product(), $this->actor($request));
+        $cards->updateAssignment($card, $request->vehicle(), $request->driver(), $request->product(), $this->actor($request), $request->fleet());
 
-        return redirect()->route('cards.show', $card)->with('status', 'Assignment saved.');
+        return redirect()->route('cards.show', $card)->with('status', 'Asignación guardada.');
     }
 
     public function updateLimits(UpdateCardLimitsRequest $request, FuelCard $card, FuelCardService $cards): RedirectResponse
@@ -147,7 +149,7 @@ class FuelCardController extends Controller
         $cards->updateLimits($card, $request->limitL(), $request->limitUsd(), $this->actor($request),
             allowBelowUsage: $request->boolean('confirm_below_usage'));
 
-        return redirect()->route('cards.show', $card)->with('status', 'Monthly limits saved.');
+        return redirect()->route('cards.show', $card)->with('status', 'Límites mensuales guardados.');
     }
 
     public function updateStatus(ChangeCardStatusRequest $request, FuelCard $card, FuelCardService $cards): RedirectResponse
@@ -155,9 +157,9 @@ class FuelCardController extends Controller
         $card = $cards->changeStatus($card, $request->status(), $this->actor($request));
 
         return redirect()->route('cards.show', $card)->with('status', match ($card->status) {
-            CardStatus::Active => 'Card unblocked.',
-            CardStatus::Blocked => 'Card blocked. POS purchases with it will be declined.',
-            CardStatus::Archived => 'Card archived. It can no longer be used or changed; its history is kept.',
+            CardStatus::Active => 'Tarjeta desbloqueada.',
+            CardStatus::Blocked => 'Tarjeta bloqueada. Las compras POS con ella serán rechazadas.',
+            CardStatus::Archived => 'Tarjeta archivada. Ya no puede usarse ni modificarse; su historial se conserva.',
         });
     }
 
@@ -180,6 +182,13 @@ class FuelCardController extends Controller
             'drivers' => Driver::query()->where('company_id', $company->id)
                 ->where($activeOrCurrent($card?->driver_id))->orderBy('name')->get(),
             'products' => Product::query()->where($activeOrCurrent($card?->allowed_product_id))->orderBy('code')->get(),
+            'fleets' => Fleet::query()->where('company_id', $company->id)
+                ->where(function (Builder $query) use ($card): void {
+                    $query->where('status', 'active');
+                    if ($card?->fleet_id !== null) {
+                        $query->orWhere('id', $card->fleet_id);
+                    }
+                })->orderBy('name')->get(),
         ];
     }
 }

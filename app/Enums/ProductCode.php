@@ -14,9 +14,9 @@ enum ProductCode: string
     public function label(): string
     {
         return match ($this) {
-            self::Ulp95 => 'Unleaded 95',
-            self::Ulp98 => 'Unleaded 98',
-            self::Diesel => 'Diesel',
+            self::Ulp95 => 'Sin plomo 95',
+            self::Ulp98 => 'Sin plomo 98',
+            self::Diesel => 'Diésel',
         };
     }
 

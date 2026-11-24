@@ -2,25 +2,25 @@
 
 @use('App\Support\Display')
 
-@section('title', 'Top stations')
+@section('title', 'Top estaciones')
 
 @section('content')
-    @include('reports._header', ['title' => 'Top stations by liters'])
+    @include('reports._header', ['title' => 'Top estaciones por litros'])
 
-    <p class="small">At most ten stations, most liters first; equal totals are ordered by station number.</p>
+    <p class="small">Como máximo diez estaciones, más litros primero; los totales iguales se ordenan por número de estación.</p>
 
     @if ($rows === [])
-        <p class="text-body-secondary">No purchases in this period.</p>
+        <p class="text-body-secondary">No hay compras en este periodo.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle bg-body">
                 <thead>
                     <tr>
                         <th scope="col">#</th>
-                        <th scope="col">Station</th>
-                        <th scope="col">Governorate</th>
-                        <th scope="col" class="text-end">Purchases</th>
-                        <th scope="col" class="text-end">Liters</th>
+                        <th scope="col">Estación</th>
+                        <th scope="col">Gobernación</th>
+                        <th scope="col" class="text-end">Compras</th>
+                        <th scope="col" class="text-end">Litros</th>
                         <th scope="col" class="text-end">LBP</th>
                         <th scope="col" class="text-end">USD</th>
                     </tr>

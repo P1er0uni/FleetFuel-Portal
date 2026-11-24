@@ -103,19 +103,19 @@ class UserAccountService
     {
         match ($role) {
             UserRole::Admin => $company === null && $station === null
-                ?: throw new InvalidArgumentException('An admin belongs to no company or station.'),
+                ?: throw new InvalidArgumentException('Un administrador no pertenece a ninguna empresa ni estación.'),
             UserRole::CompanyManager => $company !== null && $station === null
-                ?: throw new InvalidArgumentException('A company manager needs exactly one company and no station.'),
+                ?: throw new InvalidArgumentException('Un gerente de empresa necesita exactamente una empresa y ninguna estación.'),
             UserRole::StationOperator => $station !== null && $company === null
-                ?: throw new InvalidArgumentException('A station operator needs exactly one station and no company.'),
+                ?: throw new InvalidArgumentException('Un operador de estación necesita exactamente una estación y ninguna empresa.'),
         };
 
         if ($company !== null && $company->status !== CompanyStatus::Active) {
-            throw new InvalidArgumentException("Company {$company->id} is inactive.");
+            throw new InvalidArgumentException("La empresa {$company->id} está inactiva.");
         }
 
         if ($station !== null && ! $station->is_active) {
-            throw new InvalidArgumentException("Station {$station->id} is inactive.");
+            throw new InvalidArgumentException("La estación {$station->id} está inactiva.");
         }
     }
 

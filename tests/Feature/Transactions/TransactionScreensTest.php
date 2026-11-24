@@ -42,7 +42,7 @@ class TransactionScreensTest extends TestCase
     {
         // Admin: every company, filters for company and station, and the CSV link.
         $page = $this->actingAs($this->admin())->get('/transactions'.self::RANGE)->assertOk()
-            ->assertSee('Atlas Logistics')->assertSee('Cedar Catering')
+            ->assertSee('Logística Atlas')->assertSee('Catering Cedro')
             ->assertSee('name="company_id"', false)->assertSee('name="station_id"', false)->assertSee('data-csv-link', false);
         $this->assertSame($this->expectedTotals(FuelTransaction::query()), $page->viewData('totals'));
         $this->assertSame(32, $page->viewData('totals')['purchases']);
@@ -50,14 +50,14 @@ class TransactionScreensTest extends TestCase
         // Manager: their company only, no company filter.
         $atlas = $this->atlas();
         $page = $this->actingAs($this->atlasManager())->get('/transactions'.self::RANGE)->assertOk()
-            ->assertDontSee('Cedar Catering')->assertDontSee('name="company_id"', false)->assertSee('data-csv-link', false);
+            ->assertDontSee('Catering Cedro')->assertDontSee('name="company_id"', false)->assertSee('data-csv-link', false);
         $this->assertSame($this->expectedTotals(FuelTransaction::query()->where('company_id', $atlas->id)), $page->viewData('totals'));
         foreach ($page->viewData('purchases') as $purchase) {
             $this->assertSame($atlas->id, $purchase->company_id);
         }
 
         // Operator: their station only, no station or company filter, no export.
-        $station = $this->station('Harbor Demo Station');
+        $station = $this->station('Estación Demo Puerto');
         $page = $this->actingAs($this->operator())->get('/transactions'.self::RANGE)->assertOk()
             ->assertDontSee('name="station_id"', false)->assertDontSee('name="company_id"', false)->assertDontSee('data-csv-link', false);
         $this->assertSame($this->expectedTotals(FuelTransaction::query()->where('station_id', $station->id)), $page->viewData('totals'));
@@ -75,7 +75,7 @@ class TransactionScreensTest extends TestCase
         $this->results(self::RANGE.'&company_id='.$this->cedar()->id)
             ->assertStatus(422)->assertJsonValidationErrors(['company_id']);
 
-        $north = $this->station('North Demo Station');
+        $north = $this->station('Estación Demo Norte');
         $json = $this->results(self::RANGE.'&station_id='.$north->id)->assertOk()->json();
         $this->assertStringNotContainsString('Cedar', $json['html']);
         $expected = FuelTransaction::query()->where('company_id', $this->atlas()->id)->where('station_id', $north->id)->count();
@@ -92,7 +92,7 @@ class TransactionScreensTest extends TestCase
     public function test_totals_cover_the_whole_filter_and_equal_the_csv_of_the_same_filter(): void
     {
         $this->actingAs($this->admin());
-        $harbor = $this->station('Harbor Demo Station')->id;
+        $harbor = $this->station('Estación Demo Puerto')->id;
 
         foreach ([self::RANGE, self::RANGE.'&product_code=DIESEL', self::RANGE."&station_id={$harbor}&card=ff-atlas-h01"] as $query) {
             $first = $this->get('/transactions'.$query)->assertOk();
@@ -148,13 +148,13 @@ class TransactionScreensTest extends TestCase
 
         $this->results('?from=2026-09-10&to=2026-09-01')->assertStatus(422)->assertJsonValidationErrors(['to']);
         $this->results('?from=2025-01-01&to=2026-09-01')->assertStatus(422)
-            ->assertJsonValidationErrors(['to' => 'The date range may cover at most 366 days.']);
+            ->assertJsonValidationErrors(['to' => 'El rango de fechas puede cubrir como máximo 366 días.']);
         $this->results('?product_code=KEROSENE&card=FF%20ATLAS')->assertStatus(422)->assertJsonValidationErrors(['product_code', 'card']);
 
         // Without JavaScript: back to the unfiltered list, with the message and the typed value.
         $this->get('/transactions?from=2026-09-10&to=2026-09-01')->assertRedirect('/transactions');
         $this->followingRedirects()->get('/transactions?from=2026-09-10&to=2026-09-01')->assertOk()
-            ->assertSee('The to field must be a date after from.')
+            ->assertSee('El campo to debe ser una fecha posterior a from.')
             ->assertSee('aria-invalid="true" aria-describedby="filter-to-error"', false)
             ->assertSee('value="2026-09-01"', false);
     }
