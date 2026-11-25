@@ -20,6 +20,7 @@
                     $navUser->can('viewAny', App\Models\FuelTransaction::class) ? ['transactions.index', 'Transacciones', 'transactions.*'] : null,
                     $navUser->can('viewReports') ? ['reports.consumption', 'Reportes', 'reports.*'] : null,
                     $navUser->can('viewAny', App\Models\DeliveryOrder::class) ? ['deliveries.index', 'Entregas', 'deliveries.*'] : null,
+                    $navUser->can('useNotifications') ? ['notifications.index', 'Notificaciones', 'notifications.index'] : null,
                 ],
                 'Flota' => [
                     $navUser->can('viewAny', App\Models\Company::class) ? ['companies.index', 'Empresas', 'companies.*'] : null,
@@ -27,6 +28,7 @@
                     $navUser->can('viewAny', App\Models\Driver::class) ? ['drivers.index', 'Conductores', 'drivers.*'] : null,
                     $navUser->can('viewAny', App\Models\FuelCard::class) ? ['cards.index', 'Tarjetas', 'cards.*'] : null,
                     $navUser->can('viewAny', App\Models\Fleet::class) ? ['fleets.index', 'Flotas', 'fleets.*'] : null,
+                    $navUser->can('importData') ? ['import.index', 'Importar', 'import.*'] : null,
                 ],
                 'Datos de referencia' => [
                     ['stations.index', 'Estaciones', 'stations.*'],
@@ -34,6 +36,7 @@
                 ],
                 'Administración' => [
                     $navUser->can('viewAny', App\Models\ExchangeRate::class) ? ['integrations.exchange-rates', 'Tasas de cambio', 'integrations.*'] : null,
+                    $navUser->can('useNotifications') ? ['notifications.rules.index', 'Reglas de notificación', 'notifications.rules.*'] : null,
                     $navUser->can('viewAny', App\Models\AuditLog::class) ? ['audit.index', 'Auditoría', 'audit.*'] : null,
                 ],
             ]));
@@ -76,6 +79,8 @@
                                 </ul>
                             @endforeach
                         </nav>
+
+                        @include('layouts._notifications')
 
                         <div class="account mt-auto pt-3 px-2">
                             <div class="small">{{ $navUser->name }}</div>

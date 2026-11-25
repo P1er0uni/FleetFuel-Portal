@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CompanyStatus;
 use App\Enums\FleetRuleType;
 use App\Exceptions\BusinessRuleViolation;
+use App\Exceptions\FleetRuleViolation;
 use App\Models\Company;
 use App\Models\Fleet;
 use App\Models\FleetRule;
@@ -16,7 +17,6 @@ use App\Models\User;
 use App\Support\PosPurchase;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 /**
  * A fleet's rules: CRUD for the admin screens, and the read-only check the
@@ -48,9 +48,9 @@ class FleetRuleService
             ->get()
             ->keyBy(fn (FleetRule $rule): string => $rule->rule_type->value);
 
-        $this->ensureProductAllowed($rules->get(FleetRuleType::AllowedProducts->value), $product);
-        $this->ensureStationAllowed($rules->get(FleetRuleType::AllowedStations->value), $station);
-        $this->ensureWithinTransactionLiters($rules->get(FleetRuleType::MaxLitersPerTransaction->value), $purchase);
+        $this->ensureProductAllowed($rules->get(FleetRuleType::AllowedProducts->value), $product, $card);
+        $this->ensureStationAllowed($rules->get(FleetRuleType::AllowedStations->value), $station, $card);
+        $this->ensureWithinTransactionLiters($rules->get(FleetRuleType::MaxLitersPerTransaction->value), $purchase, $card);
         $this->ensureWithinDailyTransactions($rules->get(FleetRuleType::MaxTransactionsPerDay->value), $card, $purchase);
     }
 
@@ -99,21 +99,21 @@ class FleetRuleService
         });
     }
 
-    private function ensureProductAllowed(?FleetRule $rule, Product $product): void
+    private function ensureProductAllowed(?FleetRule $rule, Product $product, FuelCard $card): void
     {
         if ($rule !== null && ! in_array($product->id, $rule->rule_value['ids'] ?? [], true)) {
-            throw ValidationException::withMessages(['product_code' => 'Product not allowed for this fleet.']);
+            throw $this->violation('product_code', 'Product not allowed for this fleet.', $card, FleetRuleType::AllowedProducts);
         }
     }
 
-    private function ensureStationAllowed(?FleetRule $rule, Station $station): void
+    private function ensureStationAllowed(?FleetRule $rule, Station $station, FuelCard $card): void
     {
         if ($rule !== null && ! in_array($station->id, $rule->rule_value['ids'] ?? [], true)) {
-            throw ValidationException::withMessages(['station' => 'This station is not allowed for this fleet.']);
+            throw $this->violation('station', 'This station is not allowed for this fleet.', $card, FleetRuleType::AllowedStations);
         }
     }
 
-    private function ensureWithinTransactionLiters(?FleetRule $rule, PosPurchase $purchase): void
+    private function ensureWithinTransactionLiters(?FleetRule $rule, PosPurchase $purchase, FuelCard $card): void
     {
         if ($rule === null) {
             return;
@@ -122,7 +122,7 @@ class FleetRuleService
         $limit = (string) ($rule->rule_value['value'] ?? '0');
 
         if (BigDecimal::of($purchase->liters)->isGreaterThan($limit)) {
-            throw ValidationException::withMessages(['liters' => "This purchase exceeds the fleet's per-transaction limit of {$limit} L."]);
+            throw $this->violation('liters', "This purchase exceeds the fleet's per-transaction limit of {$limit} L.", $card, FleetRuleType::MaxLitersPerTransaction);
         }
     }
 
@@ -146,8 +146,13 @@ class FleetRuleService
             ->count();
 
         if ($already >= $limit) {
-            throw ValidationException::withMessages(['liters' => "This card reached the fleet's daily limit of {$limit} transactions."]);
+            throw $this->violation('liters', "This card reached the fleet's daily limit of {$limit} transactions.", $card, FleetRuleType::MaxTransactionsPerDay);
         }
+    }
+
+    private function violation(string $field, string $message, FuelCard $card, FleetRuleType $type): FleetRuleViolation
+    {
+        return FleetRuleViolation::forRule($field, $message, (int) $card->company_id, $card->fleet_id, (int) $card->id, $type->value);
     }
 
     private function ensureCompanyActive(Fleet $fleet): void

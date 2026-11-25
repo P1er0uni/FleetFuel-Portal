@@ -89,6 +89,51 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
+## Most recent session: importación masiva + notificaciones (fase 2)
+
+**Date:** 2026-11-25.
+
+**Goal and actual state:**
+- Goal: the user's plan `docs/sdd/fase-2-importacion-notificaciones/plan.md` — bulk CSV import of vehicles/drivers/cards and a notification system (rules, 7 events, listener, web + API), with tests.
+- Result: **all plan tasks done** (A1–A3, B1–B4 and B5), and the full suite is green locally.
+- Environment note: the portable MySQL had stopped between sessions (connection refused); it was restarted with `~/tools/start-fleetfuel-mysql.ps1`. PHP 8.3.37 + MySQL 8.4.13 portables on Windows, no Docker.
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan test tests/Feature/Import/BulkImportServiceTest.php` | 10 passed / 37 assertions |
+| `php artisan test tests/Feature/Import/ImportScreensTest.php` | 6 passed / 25 assertions |
+| `php artisan test tests/Feature/Api/ImportApiTest.php` | 6 passed / 70 assertions |
+| `php artisan test tests/Feature/Notifications/NotificationDispatchTest.php` | 8 passed / 18 assertions |
+| `php artisan test tests/Feature/Notifications/NotificationScreensTest.php` | 7 passed / 39 assertions |
+| `php artisan test tests/Feature/Api/NotificationApiTest.php` | 5 passed (toda respuesta validada contra `openapi.json`) |
+| `php artisan test tests/Feature/Api/OpenApiContractTest.php` | 7 passed / 221 assertions (paridad de rutas/abilities/roles y esquema oficial) |
+| `vendor/bin/pint` | passed |
+| `phpstan analyse` (app) / `-c tools/pos-simulator/phpstan.neon` | `[OK] No errors` / `[OK] No errors` |
+| `php artisan test` (suite completa, final) | **677 passed / 6820 assertions** (172.06 s) |
+
+### What changed
+
+- **A1 — Servicio:** `App\Support\CsvImport\{ImportResult,CsvTemplate}`, `App\Services\BulkImportService` (csv o rows, resolución de flota/vehículo/conductor, transacción por fila, `dry_run`, límites 5000/5 MB, un `audit_logs` `import.completed`).
+- **A2 — Web:** `Web\ImportController`, `Requests\Import\ImportRequest`, rutas `/import*`, `views/import/index.blade.php`, enlace "Importar" (grupo Flota), `Gate::define('importData', …)`.
+- **A3 — API:** `Api\V1\ImportController`, `Api\V1\ImportRequest`, rutas con `fleet:write`/`fleet:read`, `openapi.json` 0.12.0 (`ImportResult`).
+- **B1 — Datos:** migraciones `notification_rules` y `notifications`, enums `NotificationEventType`/`NotificationChannel`/`ThresholdOperator`, modelos `NotificationRule`/`Notification`, `Support\NotificationEntity`, factories, `morphMap` y `AuditDisplay`.
+- **B2 — Eventos:** 7 eventos en `app/Events/*` + `Listeners\ProcessNotificationEvent`, `Mail\NotificationMail`; disparos desde `FuelTransactionService`, `FuelCardService`, `DeliveryOrderService`; `Exceptions\FleetRuleViolation`.
+- **B3 — Web notificaciones:** campana con poll de 60 s (`AppServiceProvider::shareNotificationBell`, `layouts/_notifications`), `Web\NotificationController`, `Web\NotificationRuleController`, `NotificationRuleService`, requests, policies, vistas y rutas.
+- **B4 — API notificaciones:** `Api\V1\NotificationController`, `Api\V1\NotificationRuleController`, requests, resources, `UserRole::tokenAbilities()` ampliado, `openapi.json` (6 paths + schemas).
+- **B5 — Cierre:** rutas de import sin `whereIn('type')` (el tipo se valida en el controlador, así el invitado recibe 401 y no un 404 desnudo); `UserRoleTest` y `docs/05-API-CONTRACT.md` actualizados con `notifications:read`/`notifications:write`; `docs/05` (secciones import y notificaciones), `docs/03` (diagrama ER + tablas), `CHANGELOG.md`, este archivo y `docs/sdd/.../plan.md` con evidencia.
+
+### Not run or not verified
+
+- JavaScript tests and the Vite build: no JS asset changed (the bell poll and the threshold toggle are small inline scripts inside Blade); CI runs them on push.
+- Newman/Postman and the browser: no Postman folder or browser walkthrough was run for this phase.
+- The whole phase is uncommitted on the `fleets-fase-1` working tree.
+
+**Suggested commit message:** `feat: add CSV bulk import and notification rules`.
+
+**One concept to explain:** per-row atomicity vs per-file atomicity. An import of 5,000 rows commits each valid row in its own small transaction and merely records the invalid ones, so one bad plate does not throw away 4,999 good rows — the user fixes the flagged rows and re-imports only those. Notifications are the same idea in reverse: a `quota_exceeded` decline rolls the purchase transaction back, so its event is emitted *after* the rollback and its notification rows commit on their own, which is why a refused purchase can still leave a warning in the manager's inbox.
+
 ## Most recent session: fleets, fase 1 (SDD)
 
 **Date:** 2026-11-24.

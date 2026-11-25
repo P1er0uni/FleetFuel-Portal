@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\V1\DeliveryOrderController;
 use App\Http\Controllers\Api\V1\DriverController;
 use App\Http\Controllers\Api\V1\FleetController;
 use App\Http\Controllers\Api\V1\FuelCardController;
+use App\Http\Controllers\Api\V1\ImportController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\NotificationRuleController;
 use App\Http\Controllers\Api\V1\ProductPriceController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\StationController;
@@ -65,6 +68,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('drivers', [DriverController::class, 'index'])->middleware('abilities:fleet:read')->name('drivers.index');
             Route::post('drivers', [DriverController::class, 'store'])->middleware('abilities:fleet:write')->name('drivers.store');
 
+            // Bulk CSV import (docs/sdd/fase-2-importacion-notificaciones/spec.md, D8):
+            // a multipart file or a JSON rows array; a template download. The
+            // type is checked in the controller, so an unknown type is a 404
+            // after authentication (never a bare 404 before the auth check).
+            Route::post('import/{type}', [ImportController::class, 'store'])
+                ->middleware('abilities:fleet:write')
+                ->name('import.store');
+            Route::get('import/templates/{type}', [ImportController::class, 'template'])
+                ->middleware('abilities:fleet:read')
+                ->name('import.template');
+
             // Fleets (docs/sdd/fase-1-flotas/spec.md): a company's
             // sub-grouping of vehicles, drivers and cards. {fleet} is
             // tenant-scoped like {card}.
@@ -95,6 +109,20 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             // Reports and the accounting CSV, scoped like the ledger list.
             Route::get('reports/consumption', [ReportController::class, 'consumption'])->middleware('abilities:reports:read')->name('reports.consumption');
             Route::get('exports/transactions.csv', TransactionExportController::class)->middleware('abilities:exports:read')->name('exports.transactions');
+
+            // Notifications (docs/sdd/fase-2-importacion-notificaciones/spec.md, B4):
+            // the caller's inbox and the rules that feed it.
+            Route::get('notifications', [NotificationController::class, 'index'])->middleware('abilities:notifications:read')->name('notifications.index');
+            Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->middleware('abilities:notifications:read')->name('notifications.unread-count');
+            Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('abilities:notifications:write')->name('notifications.mark-all-read');
+            Route::patch('notifications/{notification}/read', [NotificationController::class, 'read'])
+                ->middleware('abilities:notifications:write')->whereNumber('notification')->name('notifications.read');
+
+            Route::get('notifications/rules', [NotificationRuleController::class, 'index'])->middleware('abilities:notifications:read')->name('notifications.rules.index');
+            Route::post('notifications/rules', [NotificationRuleController::class, 'store'])->middleware('abilities:notifications:write')->name('notifications.rules.store');
+            Route::get('notifications/rules/{notificationRule}', [NotificationRuleController::class, 'show'])->middleware('abilities:notifications:read')->name('notifications.rules.show');
+            Route::put('notifications/rules/{notificationRule}', [NotificationRuleController::class, 'update'])->middleware('abilities:notifications:write')->name('notifications.rules.update');
+            Route::delete('notifications/rules/{notificationRule}', [NotificationRuleController::class, 'destroy'])->middleware('abilities:notifications:write')->name('notifications.rules.destroy');
         });
     });
 });

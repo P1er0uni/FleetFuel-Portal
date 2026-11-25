@@ -8,6 +8,9 @@ use App\Http\Controllers\Web\DriverController;
 use App\Http\Controllers\Web\ExchangeRateController;
 use App\Http\Controllers\Web\FleetController;
 use App\Http\Controllers\Web\FuelCardController;
+use App\Http\Controllers\Web\ImportController;
+use App\Http\Controllers\Web\NotificationController;
+use App\Http\Controllers\Web\NotificationRuleController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProductPriceController;
 use App\Http\Controllers\Web\ReportController;
@@ -105,6 +108,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/fleets/{fleet}/assign', [FleetController::class, 'assign'])->name('fleets.assign');
         Route::post('/fleets/{fleet}/unassign', [FleetController::class, 'unassign'])->name('fleets.unassign');
 
+        // Bulk CSV import of vehicles, drivers and cards
+        // (docs/sdd/fase-2-importacion-notificaciones/spec.md, A2). The type is
+        // checked in the controller, so an unknown type is a 404 after auth
+        // (a guest is sent to sign in, never a bare 404).
+        Route::get('/import', [ImportController::class, 'index'])->name('import.index');
+        Route::get('/import/{type}/template', [ImportController::class, 'template'])->name('import.template');
+        Route::post('/import/{type}', [ImportController::class, 'store'])->name('import.store');
+
         // Diesel deliveries. Managers request and may cancel their own
         // pending orders; only admins schedule, dispatch and deliver
         // (DeliveryOrderService decides, with the order locked).
@@ -125,5 +136,21 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/delivery-sla', 'deliverySla')->name('delivery-sla');
         });
         Route::get('/exports/transactions.csv', TransactionExportController::class)->name('exports.transactions');
+
+        // Notifications (docs/sdd/fase-2-importacion-notificaciones/spec.md, B3):
+        // a manager's inbox and the rules that feed it.
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
+        Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'read'])
+            ->whereNumber('notification')->name('notifications.read');
+
+        Route::get('/notifications/rules', [NotificationRuleController::class, 'index'])->name('notifications.rules.index');
+        Route::get('/notifications/rules/create', [NotificationRuleController::class, 'create'])->name('notifications.rules.create');
+        Route::post('/notifications/rules', [NotificationRuleController::class, 'store'])->name('notifications.rules.store');
+        Route::get('/notifications/rules/{notificationRule}/edit', [NotificationRuleController::class, 'edit'])->name('notifications.rules.edit');
+        Route::put('/notifications/rules/{notificationRule}', [NotificationRuleController::class, 'update'])->name('notifications.rules.update');
+        Route::delete('/notifications/rules/{notificationRule}', [NotificationRuleController::class, 'destroy'])->name('notifications.rules.destroy');
+        Route::patch('/notifications/rules/{notificationRule}/toggle', [NotificationRuleController::class, 'toggle'])->name('notifications.rules.toggle');
     });
 });

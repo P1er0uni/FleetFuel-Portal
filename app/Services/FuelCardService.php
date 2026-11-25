@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\CardStatus;
 use App\Enums\CompanyStatus;
 use App\Enums\FleetStatus;
+use App\Events\CardBlocked;
 use App\Exceptions\BusinessRuleViolation;
 use App\Models\CardMonthlyUsage;
 use App\Models\Company;
@@ -179,7 +180,9 @@ class FuelCardService
      */
     public function changeStatus(FuelCard $card, CardStatus $status, User $actor): FuelCard
     {
-        return DB::transaction(function () use ($card, $status, $actor): FuelCard {
+        $becameBlocked = false;
+
+        $card = DB::transaction(function () use ($card, $status, $actor, &$becameBlocked): FuelCard {
             $card = $this->lock($card);
             $this->ensureNotArchived($card);
 
@@ -199,8 +202,16 @@ class FuelCardService
                 ['status' => $status->value],
             );
 
+            $becameBlocked = $status === CardStatus::Blocked;
+
             return $card;
         });
+
+        if ($becameBlocked) {
+            event(new CardBlocked((int) $card->id, (int) $card->company_id, $card->fleet_id, (string) $card->card_no));
+        }
+
+        return $card;
     }
 
     /**

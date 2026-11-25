@@ -4,7 +4,15 @@ namespace App\Providers;
 
 use App\Contracts\ExchangeRateProvider;
 use App\Enums\RateMode;
+use App\Events\AnomalyDetected;
+use App\Events\CardBlocked;
+use App\Events\DeliveryCancelled;
+use App\Events\DeliveryCompleted;
+use App\Events\FleetRuleViolated;
+use App\Events\QuotaExceeded;
+use App\Events\QuotaWarning;
 use App\Http\Responses\LoginResponse;
+use App\Listeners\ProcessNotificationEvent;
 use App\Models\Company;
 use App\Models\DeliveryOrder;
 use App\Models\Driver;
@@ -13,6 +21,8 @@ use App\Models\Fleet;
 use App\Models\FleetRule;
 use App\Models\FuelCard;
 use App\Models\FuelTransaction;
+use App\Models\Notification;
+use App\Models\NotificationRule;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\Station;
@@ -31,9 +41,11 @@ use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -92,6 +104,7 @@ class AppServiceProvider extends ServiceProvider
             'delivery_order' => DeliveryOrder::class,
             'fleet' => Fleet::class,
             'fleet_rule' => FleetRule::class,
+            'notification_rule' => NotificationRule::class,
         ]);
 
         // Blade lists render Bootstrap 5 pagination links.
@@ -102,6 +115,51 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
         $this->bindTenantScopedModels();
         $this->defineReportGates();
+        $this->registerNotificationEvents();
+        $this->shareNotificationBell();
+    }
+
+    /**
+     * The bell in the layout needs the signed-in manager's unread count and
+     * five latest notifications. Computed once per page render, with two
+     * constant queries that never grow with the number of notifications.
+     */
+    private function shareNotificationBell(): void
+    {
+        View::composer('layouts.app', function ($view): void {
+            $user = auth()->user();
+
+            if ($user instanceof User && ($user->isAdmin() || $user->isCompanyManager())) {
+                $view->with([
+                    'bellUnread' => Notification::query()->where('user_id', $user->id)->whereNull('read_at')->count(),
+                    'bellRecent' => Notification::query()->where('user_id', $user->id)->orderByDesc('id')->limit(5)->get(),
+                ]);
+
+                return;
+            }
+
+            $view->with(['bellUnread' => 0, 'bellRecent' => collect()]);
+        });
+    }
+
+    /**
+     * Every domain event that can feed notification rules goes to the same
+     * listener (D13). Registered explicitly so the payload type is a single
+     * base class rather than seven unrelated listeners.
+     */
+    private function registerNotificationEvents(): void
+    {
+        foreach ([
+            QuotaExceeded::class,
+            QuotaWarning::class,
+            CardBlocked::class,
+            AnomalyDetected::class,
+            DeliveryCompleted::class,
+            DeliveryCancelled::class,
+            FleetRuleViolated::class,
+        ] as $event) {
+            Event::listen($event, ProcessNotificationEvent::class);
+        }
     }
 
     /**
@@ -115,6 +173,11 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::define('viewReports', $reportReader);
         Gate::define('exportTransactions', $reportReader);
+
+        // Bulk import and notifications are for admins and company managers,
+        // like reports; the tenant scope and policies still narrow the rows.
+        Gate::define('importData', $reportReader);
+        Gate::define('useNotifications', $reportReader);
     }
 
     /**
@@ -135,6 +198,7 @@ class AppServiceProvider extends ServiceProvider
         $this->bindScoped('card', fn (User $user) => FuelCard::query()->visibleTo($user));
         $this->bindScoped('delivery', fn (User $user) => DeliveryOrder::query()->visibleTo($user));
         $this->bindScoped('fleet', fn (User $user) => Fleet::query()->visibleTo($user));
+        $this->bindScoped('notificationRule', fn (User $user) => NotificationRule::query()->visibleTo($user));
     }
 
     /**

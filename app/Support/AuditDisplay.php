@@ -31,6 +31,7 @@ final class AuditDisplay
         'delivery_order' => ['Orden de entrega', 'deliveries.show'],
         'fleet' => ['Flota', 'fleets.show'],
         'fleet_rule' => ['Regla de flota', null],
+        'notification_rule' => ['Regla de notificación', 'notifications.rules.edit'],
         'user' => ['Cuenta de usuario', null],
     ];
 
@@ -62,6 +63,11 @@ final class AuditDisplay
         'fleet.deleted' => 'Flota eliminada',
         'fleet.assignment_changed' => 'Asignación de flota cambiada',
         'fleet.rules_changed' => 'Reglas de flota cambiadas',
+        'import.completed' => 'Importación masiva completada',
+        'notification.sent' => 'Notificación registrada',
+        'notification_rule.created' => 'Regla de notificación creada',
+        'notification_rule.updated' => 'Regla de notificación actualizada',
+        'notification_rule.deleted' => 'Regla de notificación eliminada',
     ];
 
     /**

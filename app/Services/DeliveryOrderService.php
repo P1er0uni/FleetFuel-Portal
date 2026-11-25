@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\CompanyStatus;
 use App\Enums\DeliveryStatus;
+use App\Events\DeliveryCancelled;
+use App\Events\DeliveryCompleted;
 use App\Exceptions\BusinessRuleViolation;
 use App\Models\Company;
 use App\Models\DeliveryOrder;
@@ -171,6 +173,12 @@ class DeliveryOrderService
                 ),
                 $at,
             );
+
+            if ($to === DeliveryStatus::Delivered) {
+                event(new DeliveryCompleted((int) $order->id, (int) $order->company_id, (string) $order->address));
+            } elseif ($to === DeliveryStatus::Cancelled) {
+                event(new DeliveryCancelled((int) $order->id, (int) $order->company_id, (string) ($changes['cancel_reason'] ?? '')));
+            }
 
             return $order;
         });
