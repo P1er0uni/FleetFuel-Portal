@@ -76,7 +76,24 @@ class PreferenceScreensTest extends TestCase
         $page = $this->actingAs($this->world['manager'])->get('/reports/consumption')->assertOk();
 
         $this->assertSame($fleet->id, $page->viewData('defaultFleetId'));
-        $content = (string) $page->getContent();
-        $this->assertMatchesRegularExpression('/value="'.$fleet->id.'"[^>]*selected/', $content);
+        $this->assertMatchesRegularExpression('/value="'.$fleet->id.'"[^>]*selected/', (string) $page->getContent());
+    }
+
+    public function test_the_theme_preference_switches_the_layout(): void
+    {
+        $this->actingAs($this->world['manager'])
+            ->put(route('preferences.update'), ['theme' => 'dark'])
+            ->assertRedirect(route('preferences.edit'));
+
+        $this->actingAs($this->world['manager'])->get('/dashboard')
+            ->assertOk()
+            ->assertSee('data-bs-theme="dark"', false);
+
+        $this->actingAs($this->world['manager'])
+            ->put(route('preferences.update'), ['theme' => 'light']);
+
+        $this->actingAs($this->world['manager'])->get('/dashboard')
+            ->assertOk()
+            ->assertSee('data-bs-theme="light"', false);
     }
 }

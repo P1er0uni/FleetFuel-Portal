@@ -5602,9 +5602,10 @@
           "map_default_lng": {"type": "string"},
           "date_format": {"type": "string", "enum": ["d/m/Y", "Y-m-d", "d-m-Y", "m/d/Y"]},
           "language": {"type": "string", "enum": ["es"]},
-          "items_per_page": {"type": "integer", "enum": [10, 15, 25, 50]}
+          "items_per_page": {"type": "integer", "enum": [10, 15, 25, 50]},
+          "theme": {"type": "string", "enum": ["light", "dark"]}
         },
-        "required": ["default_fleet_id", "dashboard_widgets", "map_default_zoom", "map_default_lat", "map_default_lng", "date_format", "language", "items_per_page"],
+        "required": ["default_fleet_id", "dashboard_widgets", "map_default_zoom", "map_default_lat", "map_default_lng", "date_format", "language", "items_per_page", "theme"],
         "additionalProperties": false
       },
       "PreferenceEntry": {
@@ -5623,7 +5624,8 @@
           "map_default_lng": {"type": ["string", "number"]},
           "date_format": {"type": "string", "enum": ["d/m/Y", "Y-m-d", "d-m-Y", "m/d/Y"]},
           "language": {"type": "string", "enum": ["es"]},
-          "items_per_page": {"type": "integer", "enum": [10, 15, 25, 50]}
+          "items_per_page": {"type": "integer", "enum": [10, 15, 25, 50]},
+          "theme": {"type": "string", "enum": ["light", "dark"]}
         },
         "additionalProperties": false
       },

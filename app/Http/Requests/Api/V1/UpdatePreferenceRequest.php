@@ -39,6 +39,7 @@ class UpdatePreferenceRequest extends FormRequest
             'date_format' => ['value' => ['nullable', Rule::in(UserPreferenceService::DATE_FORMATS)]],
             'language' => ['value' => ['nullable', Rule::in(UserPreferenceService::LANGUAGES)]],
             'items_per_page' => ['value' => ['nullable', 'integer', Rule::in(UserPreferenceService::ITEMS_PER_PAGE)]],
+            'theme' => ['value' => ['nullable', Rule::in(array_keys(UserPreferenceService::THEMES))]],
             // Unknown keys are a 404 in the controller (after auth), not a 422.
             default => ['value' => ['nullable']],
         };

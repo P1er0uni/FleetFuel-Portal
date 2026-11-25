@@ -28,16 +28,20 @@ class UserPreferenceService
 
     public const LANGUAGES = ['es'];
 
+    /** Available colour themes; maps to Bootstrap's `data-bs-theme`. */
+    public const THEMES = ['light' => 'Claro', 'dark' => 'Oscuro'];
+
     /** @var array<string, string|null> */
     public const DEFAULTS = [
         'default_fleet_id' => null,
         'dashboard_widgets' => null,
-        'map_default_zoom' => '12',
-        'map_default_lat' => '-33.4489',
-        'map_default_lng' => '-70.6693',
+        'map_default_zoom' => '14',
+        'map_default_lat' => '-12.0812',
+        'map_default_lng' => '-77.0333',
         'date_format' => 'd/m/Y',
         'language' => 'es',
         'items_per_page' => null,
+        'theme' => 'light',
     ];
 
     /** @return list<string> */
@@ -124,9 +128,9 @@ class UserPreferenceService
     public function mapCenter(int $userId): array
     {
         return [
-            'lat' => (float) $this->get($userId, 'map_default_lat', '-33.4489'),
-            'lng' => (float) $this->get($userId, 'map_default_lng', '-70.6693'),
-            'zoom' => (int) $this->get($userId, 'map_default_zoom', '12'),
+            'lat' => (float) $this->get($userId, 'map_default_lat', '-12.0812'),
+            'lng' => (float) $this->get($userId, 'map_default_lng', '-77.0333'),
+            'zoom' => (int) $this->get($userId, 'map_default_zoom', '14'),
         ];
     }
 
@@ -136,14 +140,23 @@ class UserPreferenceService
         return match ($key) {
             'default_fleet_id' => $this->defaultFleetId($userId),
             'dashboard_widgets' => $this->dashboardWidgets($userId) ?? self::DASHBOARD_WIDGETS,
-            'map_default_zoom' => (int) $this->get($userId, 'map_default_zoom', '12'),
-            'map_default_lat' => (string) $this->get($userId, 'map_default_lat', '-33.4489'),
-            'map_default_lng' => (string) $this->get($userId, 'map_default_lng', '-70.6693'),
+            'map_default_zoom' => (int) $this->get($userId, 'map_default_zoom', '14'),
+            'map_default_lat' => (string) $this->get($userId, 'map_default_lat', '-12.0812'),
+            'map_default_lng' => (string) $this->get($userId, 'map_default_lng', '-77.0333'),
             'items_per_page' => (int) $this->get($userId, 'items_per_page', '15'),
             'date_format' => $this->dateFormat($userId),
             'language' => (string) $this->get($userId, 'language', 'es'),
+            'theme' => $this->theme($userId),
             default => $this->get($userId, $key),
         };
+    }
+
+    /** The saved colour theme, falling back to light when unknown. */
+    public function theme(int $userId): string
+    {
+        $value = (string) $this->get($userId, 'theme', 'light');
+
+        return array_key_exists($value, self::THEMES) ? $value : 'light';
     }
 
     /**

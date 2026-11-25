@@ -29,6 +29,7 @@ trait HasPreferenceRules
             'date_format' => ['nullable', Rule::in(UserPreferenceService::DATE_FORMATS)],
             'language' => ['nullable', Rule::in(UserPreferenceService::LANGUAGES)],
             'items_per_page' => ['nullable', 'integer', Rule::in(UserPreferenceService::ITEMS_PER_PAGE)],
+            'theme' => ['nullable', Rule::in(array_keys(UserPreferenceService::THEMES))],
         ];
     }
 

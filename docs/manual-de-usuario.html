@@ -1,0 +1,638 @@
+<title>Manual de FleetFuel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --surface-2: #eef2f7;
+    --fg: #1a2330;
+    --muted: #56657a;
+    --border: #d9e0e9;
+    --accent: #123a63;
+    --accent-2: #1f6feb;
+    --accent-soft: #e6eef9;
+    --ok: #1a7f37;
+    --ok-soft: #e5f4ea;
+    --warn: #9a5b00;
+    --warn-soft: #fdf1dc;
+    --danger: #b42318;
+    --danger-soft: #fbe9e7;
+    --code-bg: #eef2f7;
+    --shadow: 0 1px 2px rgba(16, 30, 54, .06), 0 4px 16px rgba(16, 30, 54, .06);
+    --radius: 12px;
+    --sidebar: 260px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e151f;
+      --surface: #151f2b;
+      --surface-2: #1b2735;
+      --fg: #e7eef7;
+      --muted: #9db0c4;
+      --border: #26333f;
+      --accent: #8fc2ff;
+      --accent-2: #6cb2ff;
+      --accent-soft: #17283a;
+      --ok: #6ddc8e;
+      --ok-soft: #12281b;
+      --warn: #f0b45a;
+      --warn-soft: #2c2415;
+      --danger: #ff8d84;
+      --danger-soft: #2e1917;
+      --code-bg: #0b1119;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e151f;
+    --surface: #151f2b;
+    --surface-2: #1b2735;
+    --fg: #e7eef7;
+    --muted: #9db0c4;
+    --border: #26333f;
+    --accent: #8fc2ff;
+    --accent-2: #6cb2ff;
+    --accent-soft: #17283a;
+    --ok: #6ddc8e;
+    --ok-soft: #12281b;
+    --warn: #f0b45a;
+    --warn-soft: #2c2415;
+    --danger: #ff8d84;
+    --danger-soft: #2e1917;
+    --code-bg: #0b1119;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: 4rem;
+  }
+  .masthead {
+    max-width: 1160px;
+    margin: 0 auto 1.5rem;
+    padding: 2.2rem 1.5rem 1.8rem;
+    background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .eyebrow {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--accent-2);
+    margin: 0 0 .5rem;
+  }
+  h1 {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    line-height: 1.1;
+    margin: 0 0 .6rem;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+  }
+  .lede { font-size: 1.05rem; color: var(--muted); max-width: 62ch; margin: 0 0 1rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .8rem; }
+  .chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .78rem; font-weight: 600;
+    padding: .28rem .6rem; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--border);
+  }
+
+  .layout {
+    max-width: 1160px; margin: 0 auto;
+    display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    gap: 2.4rem;
+  }
+  @media (max-width: 899px) {
+    .layout { grid-template-columns: 1fr; gap: 1rem; }
+  }
+
+  /* TOC */
+  .toc { align-self: start; }
+  @media (min-width: 900px) {
+    .toc { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+  }
+  .toc-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .85rem .95rem; box-shadow: var(--shadow);
+  }
+  .toc summary {
+    cursor: pointer; font-family: "Space Grotesk", Inter, sans-serif;
+    font-weight: 600; font-size: .95rem; list-style: none; display: flex; justify-content: space-between; align-items: center;
+  }
+  .toc summary::-webkit-details-marker { display: none; }
+  .toc summary::after { content: "▾"; color: var(--muted); }
+  details[open].toc-box summary::after { content: "▴"; }
+  .toc nav { margin-top: .7rem; }
+  .toc a {
+    display: block; padding: .28rem .5rem; margin: .1rem 0; border-radius: 8px;
+    color: var(--muted); text-decoration: none; font-size: .88rem; border-left: 2px solid transparent;
+  }
+  .toc a:hover { background: var(--surface-2); color: var(--fg); }
+  .toc .group { margin-top: .65rem; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 0 .5rem; }
+
+  /* Document */
+  .doc { min-width: 0; }
+  .doc section { margin-bottom: 2.6rem; scroll-margin-top: 1rem; }
+  h2 {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: 1.5rem; letter-spacing: -.01em; margin: 0 0 .4rem;
+    display: flex; align-items: baseline; gap: .6rem; text-wrap: balance;
+  }
+  h2 .num {
+    font-size: .8rem; color: var(--accent-2); font-weight: 700;
+    background: var(--accent-soft); border-radius: 6px; padding: .1rem .45rem;
+  }
+  h3 {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: 1.1rem; margin: 1.5rem 0 .35rem; letter-spacing: -.005em;
+  }
+  h4 { font-size: .95rem; margin: 1rem 0 .3rem; }
+  p, li { max-width: 70ch; }
+  p { margin: .55rem 0; }
+  ul, ol { padding-left: 1.25rem; margin: .5rem 0; }
+  li { margin: .28rem 0; }
+  strong { font-weight: 600; }
+  a { color: var(--accent-2); }
+  .small { font-size: .86rem; color: var(--muted); }
+  .divider { height: 1px; background: var(--border); border: 0; margin: 1.6rem 0; }
+
+  code, .code {
+    font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+    background: var(--code-bg); border: 1px solid var(--border);
+    padding: .08rem .34rem; border-radius: 6px; font-size: .85em;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: .9rem 1rem; overflow-x: auto; font-size: .85rem; line-height: 1.5;
+  }
+  pre code { border: 0; background: none; padding: 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.15rem; box-shadow: var(--shadow);
+  }
+
+  .callout {
+    border: 1px solid var(--border); border-left: 4px solid var(--accent-2);
+    background: var(--surface); border-radius: 10px; padding: .8rem 1rem; margin: 1rem 0;
+  }
+  .callout .t { font-weight: 700; font-size: .85rem; letter-spacing: .02em; text-transform: uppercase; color: var(--accent-2); margin-bottom: .15rem; }
+  .callout p { margin: .2rem 0; }
+  .callout.tip { border-left-color: var(--ok); }
+  .callout.tip .t { color: var(--ok); }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout.warn .t { color: var(--warn); }
+  .callout.danger { border-left-color: var(--danger); background: var(--danger-soft); }
+  .callout.danger .t { color: var(--danger); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+  th, td { text-align: left; padding: .55rem .75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .code { white-space: nowrap; }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no { color: var(--muted); }
+
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; margin: 1rem 0; }
+  .feature {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: .8rem .95rem;
+  }
+  .feature h4 { margin: 0 0 .25rem; }
+  .feature p { margin: 0; font-size: .88rem; color: var(--muted); }
+
+  ol.steps { counter-reset: step; list-style: none; padding-left: 0; margin: .8rem 0; }
+  ol.steps > li { position: relative; padding-left: 2.2rem; margin: .6rem 0; }
+  ol.steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 1.55rem; height: 1.55rem; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; font-size: .78rem; display: grid; place-items: center;
+    border: 1px solid var(--border);
+  }
+
+  .badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: .1rem .45rem; border-radius: 6px; border: 1px solid var(--border); }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.danger { background: var(--danger-soft); color: var(--danger); }
+  .badge.info { background: var(--accent-soft); color: var(--accent); }
+
+  .footer {
+    max-width: 1160px; margin: 3rem auto 0; padding-top: 1.2rem;
+    border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem;
+  }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <p class="eyebrow">FleetFuel Portal · Documentación</p>
+    <h1>Manual de usuario</h1>
+    <p class="lede">Cómo usar el portal de flotas y combustible: roles, pantallas, tareas paso a paso y las reglas de negocio que el sistema aplica. Proyecto de portafolio con empresas, personas y precios ficticios.</p>
+    <div class="meta">
+      <span class="chip">Laravel 13 · MySQL 8.4</span>
+      <span class="chip">3 roles</span>
+      <span class="chip">Versión fase 3</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="toc">
+      <details class="toc-box" open>
+        <summary>Índice</summary>
+        <nav aria-label="Índice del manual">
+          <a href="#que-es">Qué es el portal</a>
+          <a href="#entrar">Cómo entrar</a>
+          <a href="#roles">Roles y permisos</a>
+          <a href="#navegacion">Navegación</a>
+          <span class="group">Módulos</span>
+          <a href="#panel">Panel (dashboard)</a>
+          <a href="#transacciones">Transacciones</a>
+          <a href="#estacion">Estación (POS)</a>
+          <a href="#entregas">Entregas</a>
+          <a href="#flotas">Flotas</a>
+          <a href="#fleet-master">Vehículos, conductores y tarjetas</a>
+          <a href="#importacion">Importación CSV</a>
+          <a href="#notificaciones">Notificaciones</a>
+          <a href="#mapa">Mapa de estaciones</a>
+          <a href="#reportes">Reportes y CSV</a>
+          <a href="#favoritos">Favoritos</a>
+          <a href="#preferencias">Preferencias</a>
+          <a href="#admin">Administración</a>
+          <span class="group">Referencia</span>
+          <a href="#reglas">Reglas de negocio</a>
+          <a href="#tareas">Tareas frecuentes</a>
+          <a href="#errores">Mensajes de error</a>
+          <a href="#faq">Preguntas frecuentes</a>
+          <a href="#arquitectura">Cómo funciona por dentro</a>
+        </nav>
+      </details>
+    </aside>
+
+    <main class="doc">
+
+      <section id="que-es">
+        <h2><span class="num">01</span> Qué es el portal</h2>
+        <p><strong>FleetFuel Portal</strong> es un sistema web para gestionar una distribuidora de combustible ficticia. Cubre cuatro áreas:</p>
+        <div class="grid-cards">
+          <div class="feature"><h4>Flota</h4><p>Vehículos, conductores, tarjetas de combustible, flotas y sus reglas y cuotas.</p></div>
+          <div class="feature"><h4>Ventas en estación</h4><p>Registro de compras desde el POS de una estación, con control de cuota e idempotencia.</p></div>
+          <div class="feature"><h4>Entregas de diésel</h4><p>Solicitud, programación, despacho y entrega, con historial y SLA.</p></div>
+          <div class="feature"><h4>Reportes y control</h4><p>Consumo, excepciones de cuota, anomalías, eficiencia, exportación CSV y auditoría.</p></div>
+        </div>
+        <p class="small">Todos los datos son de demostración. El dinero se maneja en dos monedas (USD y LBP) y las cantidades y montos se guardan como decimales exactos, nunca con redondeos de coma flotante.</p>
+      </section>
+
+      <section id="entrar">
+        <h2><span class="num">02</span> Cómo entrar</h2>
+        <p>Se abre la URL del portal y aparece la pantalla de <strong>Iniciar sesión</strong>. No hay registro público: las cuentas las crea el administrador (o vienen con los datos de demostración).</p>
+        <ul>
+          <li>Se introduce <strong>correo</strong> y <strong>contraseña</strong>.</li>
+          <li>Tras entrar, cada rol llega a su página inicial: el <em>Panel</em> para administrador y gerente, la <em>Estación</em> para el operador.</li>
+          <li>Para salir, botón <strong>Cerrar sesión</strong> al final del menú lateral.</li>
+        </ul>
+        <div class="callout">
+          <div class="t">Cuentas de demostración</div>
+          <p><span class="code">admin@fleetfuel.test</span> · <span class="code">manager.atlas@fleetfuel.test</span> · <span class="code">manager.cedar@fleetfuel.test</span> · <span class="code">operator.beirut@fleetfuel.test</span></p>
+          <p>La contraseña común es la de la variable <span class="code">DEMO_PASSWORD</span> del archivo <span class="code">.env</span> (la configura quien instala el proyecto).</p>
+        </div>
+      </section>
+
+      <section id="roles">
+        <h2><span class="num">03</span> Roles y permisos</h2>
+        <p>Hay tres roles. Cada uno ve solo lo que le corresponde; un registro de otra empresa responde “no encontrado”.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Función</th><th>Administrador</th><th>Gerente de empresa</th><th>Operador de estación</th></tr></thead>
+            <tbody>
+              <tr><td>Panel con totales y alertas</td><td class="yes">Sí (todas las empresas)</td><td class="yes">Sí (su empresa)</td><td class="no">No</td></tr>
+              <tr><td>Lista de transacciones</td><td class="yes">Todas</td><td class="yes">Su empresa</td><td class="yes">Su estación</td></tr>
+              <tr><td>Registrar compra (POS)</td><td class="no">No</td><td class="no">No</td><td class="yes">Sí</td></tr>
+              <tr><td>Reportes y CSV</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="no">No</td></tr>
+              <tr><td>Entregas</td><td class="yes">Todas</td><td class="yes">Su empresa</td><td class="no">No</td></tr>
+              <tr><td>Vehículos, conductores, tarjetas, flotas, importación</td><td class="yes">Todas</td><td class="yes">Su empresa</td><td class="no">No</td></tr>
+              <tr><td>Mapa de estaciones</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="no">No</td></tr>
+              <tr><td>Notificaciones</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="no">No</td></tr>
+              <tr><td>Favoritos y preferencias</td><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+              <tr><td>Empresas, estaciones, productos, tasas, auditoría</td><td class="yes">Solo administrador</td><td class="no">No</td><td class="no">No</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="navegacion">
+        <h2><span class="num">04</span> Navegación</h2>
+        <p>El menú lateral agrupa las pantallas según el rol. En pantallas grandes puede <strong>plegarse</strong> con el botón <span class="code">☰</span> de la barra superior para ganar espacio; el estado se recuerda. En móvil se abre como panel deslizable con el botón <strong>Menú</strong>.</p>
+        <h3>Grupos del menú</h3>
+        <ul>
+          <li><strong>General:</strong> Panel (o Estación), Transacciones, Reportes, Entregas, Notificaciones, Mapa.</li>
+          <li><strong>Flota:</strong> Empresas, Vehículos, Conductores, Tarjetas, Flotas, Importar.</li>
+          <li><strong>Datos de referencia:</strong> Estaciones, Productos y precios.</li>
+          <li><strong>Administración:</strong> Tasas de cambio, Reglas de notificación, Auditoría.</li>
+          <li><strong>Cuenta</strong> (abajo): nombre, rol, <em>Preferencias</em> y <em>Cerrar sesión</em>.</li>
+        </ul>
+      </section>
+
+      <section id="panel">
+        <h2><span class="num">05</span> Panel (dashboard)</h2>
+        <p>Es la página de inicio de administrador y gerente. Resume la operación del mes en curso (calendario de Beirut) frente al mes anterior.</p>
+        <h3>Qué muestra</h3>
+        <ul>
+          <li><strong>Totales del mes:</strong> número de compras, litros, gasto en USD y en LBP, con el mes anterior como referencia.</li>
+          <li><strong>Alertas de cuota:</strong> tarjetas bloqueadas o por encima de su límite este mes.</li>
+          <li><strong>Entregas abiertas:</strong> pedidos pendientes, programados o en camino.</li>
+          <li><strong>Datos de flota y tasa:</strong> conteos de vehículos, conductores y tarjetas, y la tasa USD/LBP vigente.</li>
+          <li><strong>Consumo por flota:</strong> litros del mes de cada flota frente a su cuota (%), con estado.</li>
+          <li><strong>Compras recientes</strong> y acceso al <strong>mapa</strong>.</li>
+          <li><strong>Favoritos:</strong> accesos rápidos reordenables (ver más abajo).</li>
+        </ul>
+        <div class="callout tip"><div class="t">Widgets a tu medida</div><p>En <em>Preferencias → Dashboard</em> puedes elegir qué secciones ves y en qué orden. Si ocultas una, desaparece del panel sin afectar los datos.</p></div>
+      </section>
+
+      <section id="transacciones">
+        <h2><span class="num">06</span> Transacciones</h2>
+        <p>La lista de compras registradas. Cada rol ve un alcance distinto: el administrador, todas; el gerente, las de su empresa; el operador, las de su estación.</p>
+        <h3>Filtros</h3>
+        <ul>
+          <li><strong>Fechas</strong> (por defecto, el mes de Beirut actual).</li>
+          <li><strong>Tarjeta</strong>, <strong>estación</strong> y <strong>producto</strong>.</li>
+          <li><strong>Empresa</strong>, solo para el administrador.</li>
+        </ul>
+        <p>La lista muestra totales del filtro completo (no solo de la página) y permite <strong>exportar a CSV</strong>. Al abrir una compra se ve su detalle inmutable: precio, tasa, litros, vehículo, conductor y capacidad de tanque tal como se guardaron en el momento.</p>
+        <div class="callout"><div class="t">Las compras no se editan</div><p>Una compra aceptada es un registro contable: no se corrige ni se recotiza. Un error se corrige con un nuevo movimiento, nunca cambiando el anterior.</p></div>
+      </section>
+
+      <section id="estacion">
+        <h2><span class="num">07</span> Estación (POS)</h2>
+        <p>Pantalla del <strong>operador de estación</strong> para registrar una venta de combustible.</p>
+        <ol class="steps">
+          <li>Se identifica la tarjeta (número), el producto y los litros, con la hora del evento y, si aplica, el odómetro.</li>
+          <li>El sistema valida tarjeta, empresa, asignaciones, producto, reglas de flota, precio y tasa vigentes.</li>
+          <li>Comprueba la cuota mensual de la tarjeta y registra la compra, actualizando el contador del mes.</li>
+        </ol>
+        <div class="callout warn"><div class="t">Reglas del POS</div>
+          <p>• Cada envío lleva una <strong>referencia externa</strong> única: reintentos idénticos devuelven la misma compra; una referencia repetida con datos distintos se rechaza.</p>
+          <p>• Solo se aceptan eventos de las <strong>últimas 72 horas</strong> y nunca del futuro.</p>
+          <p>• La estación se toma de la sesión del operador; nunca del formulario.</p>
+        </div>
+      </section>
+
+      <section id="entregas">
+        <h2><span class="num">08</span> Entregas de diésel</h2>
+        <p>Pedidos de reparto de combustible a domicilio. El gerente solicita y puede cancelar sus pedidos pendientes; el administrador programa, despacha y entrega.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Estado</th><th>Quién</th><th>Qué ocurre</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge info">Pendiente</span></td><td>Gerente / admin</td><td>Se crea con dirección, gobernación, litros y ventana preferida; se registra el primer historial.</td></tr>
+              <tr><td><span class="badge info">Programada</span></td><td>Administrador</td><td>Se fija ventana y camión.</td></tr>
+              <tr><td><span class="badge info">En camino</span></td><td>Administrador</td><td>Sale a reparto.</td></tr>
+              <tr><td><span class="badge ok">Entregada</span></td><td>Administrador</td><td>Estado final; se guarda la hora de entrega.</td></tr>
+              <tr><td><span class="badge danger">Cancelada</span></td><td>Gerente (su pendiente) / admin</td><td>Requiere motivo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Una entrega <strong>no toca tarjetas, cuotas ni el registro de compras</strong>. Si dos usuarios cambian el estado a la vez, el segundo recibe un aviso de que el pedido ya cambió.</p>
+      </section>
+
+      <section id="flotas">
+        <h2><span class="num">09</span> Flotas</h2>
+        <p>Una <strong>flota</strong> agrupa vehículos, conductores y tarjetas de una empresa y les asigna una cuota mensual agregada y reglas.</p>
+        <h3>Qué se puede hacer</h3>
+        <ul>
+          <li><strong>Crear/editar</strong> flota con nombre, descripción y cuota mensual (litros y/o USD). El nombre es único dentro de la empresa.</li>
+          <li><strong>Asignar o desasignar</strong> vehículos, conductores y tarjetas de la empresa.</li>
+          <li><strong>Definir reglas:</strong> productos permitidos, estaciones permitidas, máximo de litros por transacción y máximo de transacciones por día.</li>
+          <li><strong>Activar/desactivar</strong> y <strong>eliminar</strong> (los miembros quedan “sin flota” y siguen funcionando).</li>
+        </ul>
+        <div class="callout"><div class="t">Cómo se aplican las reglas</div><p>Las reglas se comprueban al aceptar una compra en el POS: si se incumplen, la compra se rechaza con un mensaje claro. La <strong>cuota agregada</strong> de la flota es solo una señal en el panel y los reportes; nunca bloquea por sí sola.</p></div>
+      </section>
+
+      <section id="fleet-master">
+        <h2><span class="num">10</span> Vehículos, conductores y tarjetas</h2>
+        <h3>Vehículos y conductores</h3>
+        <p>Se crean y editan con su empresa asignada por el servidor (el gerente no puede elegir empresa). La <strong>placa</strong> y el <strong>número de licencia</strong> son únicos en su ámbito; se normalizan a mayúsculas. Pueden asignarse a una flota.</p>
+        <h3>Tarjetas de combustible</h3>
+        <ul>
+          <li>Tienen <strong>límite mensual</strong> de litros y de USD (vacío = ilimitado) y un estado <span class="badge ok">activa</span>, <span class="badge warn">bloqueada</span> o <span class="badge danger">archivada</span>.</li>
+          <li>Se les asigna vehículo, conductor, restricción de producto y flota.</li>
+          <li>La <strong>asignación se bloquea</strong> tras la primera compra aceptada; los límites y el estado sí se pueden cambiar.</li>
+          <li>Archivar es definitivo: una tarjeta archivada no se reactiva.</li>
+        </ul>
+        <div class="callout tip"><div class="t">Estrella de favorito</div><p>En el detalle de una flota y en la edición de un vehículo hay una estrella para añadirlo a tus favoritos.</p></div>
+      </section>
+
+      <section id="importacion">
+        <h2><span class="num">11</span> Importación masiva (CSV)</h2>
+        <p>Crea vehículos, conductores o tarjetas en lote desde un archivo CSV. Disponible para administrador y gerente; el administrador elige empresa y el gerente usa la suya.</p>
+        <ol class="steps">
+          <li><strong>Descarga la plantilla</strong> del tipo que quieras importar (vehículos, conductores o tarjetas).</li>
+          <li><strong>Rellena</strong> el archivo respetando el encabezado exacto y una fila por registro.</li>
+          <li>Marca <strong>“Simular (no guardar)”</strong> si quieres validar sin escribir nada.</li>
+          <li>Sube el archivo y revisa la <strong>tabla de resultados</strong>: fila, campo y mensaje de cada error.</li>
+        </ol>
+        <div class="callout warn"><div class="t">Límites y comportamiento</div><p>Máximo <strong>5.000 filas</strong> y <strong>5 MB</strong> por archivo. Las filas válidas se guardan aunque otras fallen; los errores se señalan por fila para que corrijas solo esas.</p></div>
+      </section>
+
+      <section id="notificaciones">
+        <h2><span class="num">12</span> Notificaciones</h2>
+        <p>El sistema avisa de eventos importantes según reglas que tú configuras. Hay una <strong>campana</strong> en la cabecera con el número de no leídas (se actualiza cada minuto) y las últimas cinco.</p>
+        <h3>Bandeja de notificaciones</h3>
+        <ul>
+          <li>Lista con filtros por <strong>leídas/no leídas</strong> y por <strong>tipo</strong>.</li>
+          <li>Marcar una como leída o <strong>marcar todas</strong>.</li>
+        </ul>
+        <h3>Reglas de notificación</h3>
+        <p>Cada regla dice: <em>para este evento, en esta compañía (y opcionalmente esta flota), envía por este canal</em>. Canales: <strong>en la aplicación</strong>, <strong>correo</strong> o <strong>registro</strong> (auditoría + log).</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Evento</th><th>Cuándo se dispara</th></tr></thead>
+            <tbody>
+              <tr><td>Cuota excedida</td><td>Se rechaza una compra por superar el límite de la tarjeta.</td></tr>
+              <tr><td>Aviso de cuota</td><td>Una compra deja la tarjeta en cierto % de su cuota (usa el umbral de la regla).</td></tr>
+              <tr><td>Tarjeta bloqueada</td><td>Se bloquea una tarjeta.</td></tr>
+              <tr><td>Anomalía detectada</td><td>Dos cargas del mismo vehículo con menos de 30 minutos.</td></tr>
+              <tr><td>Entrega completada / cancelada</td><td>Un pedido llega a entregado o se cancela.</td></tr>
+              <tr><td>Regla de flota incumplida</td><td>Una compra es rechazada por una regla de flota.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout"><div class="t">Umbral y anti-repetición</div><p>El umbral (por ejemplo “al menos 80 %”) solo se aplica al <em>aviso de cuota</em>. Un mismo evento sobre la misma entidad no se repite más de <strong>una vez por hora</strong>, para no saturar.</p></div>
+      </section>
+
+      <section id="mapa">
+        <h2><span class="num">13</span> Mapa de estaciones</h2>
+        <p>Vista geográfica de las estaciones (administrador y gerente). Cada estación con coordenadas aparece como un pin:</p>
+        <ul>
+          <li><span class="badge ok">Verde</span> activa y con compras hoy.</li>
+          <li><span class="badge info">Azul</span> activa sin compras hoy.</li>
+          <li><span class="badge">Gris</span> inactiva.</li>
+        </ul>
+        <p>Al alejar, los pines cercanos se agrupan en un círculo con el número de estaciones. Al hacer clic en un pin se ve nombre, dirección, estado, productos, compras y litros del día y el último tanqueo. Los filtros laterales permiten acotar por <strong>estado</strong>, <strong>producto</strong> y <strong>nombre</strong>, y hay un botón “Centrar en mi ubicación”.</p>
+        <div class="callout"><div class="t">Estaciones sin ubicación</div><p>Las estaciones sin coordenadas no salen en el mapa, pero se listan debajo con un enlace para editarlas (administrador).</p></div>
+      </section>
+
+      <section id="reportes">
+        <h2><span class="num">14</span> Reportes y exportación CSV</h2>
+        <p>Seis reportes, todos con filtros de fecha (por defecto el mes actual de Beirut) y, para el administrador, de empresa; además, filtro por flota.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Reporte</th><th>Qué responde</th></tr></thead>
+            <tbody>
+              <tr><td>Consumo</td><td>Litros y montos agrupados por empresa, vehículo o producto.</td></tr>
+              <tr><td>Top estaciones</td><td>Las estaciones con más litros (máx. 10).</td></tr>
+              <tr><td>Excepciones de cuota</td><td>Tarjetas bloqueadas o en/por encima de su límite este mes.</td></tr>
+              <tr><td>Anomalías</td><td>Sobre-llenados de tanque y cargas rápidas (&lt; 30 min).</td></tr>
+              <tr><td>Eficiencia</td><td>Estimación km/L full-to-full a partir de lecturas de odómetro.</td></tr>
+              <tr><td>SLA de entregas</td><td>Horas desde la solicitud hasta la entrega, por gobernación.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>La <strong>exportación CSV</strong> de transacciones usa los mismos filtros y alcance que la lista; incluye encabezado, escape correcto y neutraliza fórmulas en celdas de texto.</p>
+      </section>
+
+      <section id="favoritos">
+        <h2><span class="num">15</span> Favoritos</h2>
+        <p>Accesos rápidos a flotas, vehículos o estaciones que usas a menudo.</p>
+        <ul>
+          <li><strong>Estrella</strong> en el detalle de una flota o en la edición de un vehículo: añade o quita el favorito.</li>
+          <li>El <strong>panel “Favoritos”</strong> del dashboard muestra tus accesos; puedes <strong>arrastrarlos</strong> para ordenarlos.</li>
+          <li>Solo puedes marcar entidades que puedes ver (otra empresa responde “no encontrado”; un duplicado se rechaza).</li>
+        </ul>
+      </section>
+
+      <section id="preferencias">
+        <h2><span class="num">16</span> Preferencias</h2>
+        <p>Personalización por usuario, desde el menú de la cuenta. Se aplica en la siguiente navegación, sin cerrar sesión.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Sección</th><th>Qué ajustas</th></tr></thead>
+            <tbody>
+              <tr><td>General</td><td>Idioma, formato de fecha y filas por página.</td></tr>
+              <tr><td>Dashboard</td><td>Flota por defecto (preseleccionada en reportes) y qué widgets ves y en qué orden.</td></tr>
+              <tr><td>Mapa</td><td>Zoom inicial y centro (latitud/longitud), con botón “Usar mi ubicación”.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="admin">
+        <h2><span class="num">17</span> Administración (solo administrador)</h2>
+        <ul>
+          <li><strong>Empresas:</strong> crear y activar/desactivar. Una empresa inactiva deja su flota en solo lectura.</li>
+          <li><strong>Estaciones:</strong> crear, editar y activar/desactivar; las coordenadas alimentan el mapa.</li>
+          <li><strong>Productos y precios:</strong> publicar precios por producto con vigencia.</li>
+          <li><strong>Tasas de cambio USD/LBP:</strong> ver la tasa vigente y su origen; crear ajustes manuales temporales. La sincronización automática corre por el comando programado <span class="code">rates:sync</span>.</li>
+          <li><strong>Auditoría:</strong> registro inmutable de cambios sensibles (cuotas, bloqueos, flotas, entregas, precios, tasas, cuentas), con filtros por actor, acción, tipo y empresa.</li>
+        </ul>
+      </section>
+
+      <section id="reglas">
+        <h2><span class="num">18</span> Reglas de negocio que conviene conocer</h2>
+        <ul>
+          <li><strong>Mes de cuota:</strong> los meses son del calendario de Beirut; las horas se guardan en UTC y se muestran en hora de Beirut.</li>
+          <li><strong>Cuotas:</strong> la cuota de una tarjeta <em>bloquea</em> la compra al superarse; la cuota agregada de una flota es solo una <em>señal</em>.</li>
+          <li><strong>Idempotencia del POS:</strong> una referencia externa repetida con el mismo contenido devuelve la compra original; con contenido distinto, se rechaza (conflicto).</li>
+          <li><strong>Instantáneas:</strong> cada compra guarda el precio, la tasa, el vehículo, el conductor y la capacidad de tanque del momento; nunca se recotiza.</li>
+          <li><strong>Tasa de cambio:</strong> sin una tasa válida no se puede valorar una compra; nunca se usa una tasa adivinada ni 1:1.</li>
+          <li><strong>Entregas:</strong> siguen una máquina de estados; no afectan tarjetas ni el registro de compras.</li>
+        </ul>
+      </section>
+
+      <section id="tareas">
+        <h2><span class="num">19</span> Tareas frecuentes</h2>
+        <h3>Registrar una compra en el POS (operador)</h3>
+        <ol class="steps"><li>Entra a <em>Estación</em>.</li><li>Escribe la tarjeta, el producto y los litros; ajusta la hora si fue antes (máx. 72 h).</li><li>Envía y revisa la confirmación con el importe y el saldo restante.</li></ol>
+        <h3>Solicitar y gestionar una entrega</h3>
+        <ol class="steps"><li>El <em>gerente</em> abre <em>Entregas → Solicitar</em> e indica dirección, gobernación, litros y ventana preferida.</li><li>El <em>administrador</em> la programa (ventana y camión), la despacha y la marca entregada.</li><li>El gerente puede cancelar un pedido aún pendiente.</li></ol>
+        <h3>Crear una flota con reglas</h3>
+        <ol class="steps"><li><em>Flotas → Agregar</em>: nombre y cuota.</li><li>Añade reglas (productos/estaciones permitidos, máximos).</li><li>Asigna vehículos, conductores y tarjetas de la empresa.</li></ol>
+        <h3>Importar vehículos desde CSV</h3>
+        <ol class="steps"><li><em>Importar → Vehículos</em>: descarga la plantilla.</li><li>Rellénala y súbela (o simula primero).</li><li>Corrige las filas con error y vuelve a importar.</li></ol>
+        <h3>Configurar un aviso de cuota al 80 %</h3>
+        <ol class="steps"><li><em>Reglas de notificación → Agregar</em>.</li><li>Evento “Aviso de cuota”, canal “En la aplicación”, umbral 80 con operador “Al menos”.</li><li>Opcional: limita la regla a una flota.</li></ol>
+        <h3>Exportar el detalle contable</h3>
+        <ol class="steps"><li><em>Transacciones</em>: fija fechas y filtros.</li><li>Pulsa exportar CSV; el archivo coincide con los totales en pantalla.</li></ol>
+      </section>
+
+      <section id="errores">
+        <h2><span class="num">20</span> Mensajes de error comunes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mensaje</th><th>Significado</th><th>Qué hacer</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge danger">Cuota excedida</span></td><td>La compra supera el límite mensual (litros o USD) de la tarjeta.</td><td>Revisa límites y consumo; ajusta o usa otra tarjeta.</td></tr>
+              <tr><td><span class="badge danger">Tarjeta bloqueada</span></td><td>La tarjeta está bloqueada o archivada.</td><td>Desbloquéala (si aplica) desde Tarjetas.</td></tr>
+              <tr><td><span class="badge warn">Empresa inactiva</span></td><td>La empresa de la tarjeta está desactivada.</td><td>Reactívala desde Empresas (administrador).</td></tr>
+              <tr><td><span class="badge warn">Sin precio / sin tasa</span></td><td>No hay precio del producto o tasa de cambio válida a esa hora.</td><td>Publica un precio o una tasa válida y reintenta.</td></tr>
+              <tr><td><span class="badge warn">El pedido cambió</span></td><td>Otra persona modificó la entrega antes que tú.</td><td>Recarga y revisa el estado actual.</td></tr>
+              <tr><td><span class="badge warn">Referencia repetida</span></td><td>Se reutilizó una referencia externa con datos distintos.</td><td>Usa una referencia nueva para una venta nueva.</td></tr>
+              <tr><td><span class="badge">Demasiadas solicitudes</span></td><td>Límite de peticiones alcanzado.</td><td>Espera unos segundos y reintenta.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2><span class="num">21</span> Preguntas frecuentes</h2>
+        <h3>¿Puedo editar o borrar una compra ya registrada?</h3>
+        <p>No. El registro de compras es inmutable. Cualquier corrección se hace con un nuevo movimiento.</p>
+        <h3>¿Por qué no veo una flota, tarjeta o entrega de otra empresa?</h3>
+        <p>El sistema aísla por empresa: los registros ajenos responden “no encontrado”, incluso escribiendo la URL.</p>
+        <h3>¿Cómo cambio la contraseña?</h3>
+        <p>Este proyecto de demostración no incluye autogestión de contraseña; las cuentas y claves las administra quien instala el sistema.</p>
+        <h3>¿Los litros y montos usan decimales exactos?</h3>
+        <p>Sí. Se guardan y calculan con aritmética decimal exacta (no con coma flotante); en la API viajan como cadenas.</p>
+        <h3>¿Puedo usar el portal desde el móvil?</h3>
+        <p>Sí. El menú se vuelve deslizable y las tablas anchas se desplazan dentro de su contenedor.</p>
+      </section>
+
+      <section id="arquitectura">
+        <h2><span class="num">22</span> Cómo funciona por dentro (breve)</h2>
+        <p>Para quien quiera entender la estructura técnica:</p>
+        <ul>
+          <li><strong>Stack:</strong> Laravel 13 (PHP 8.3), MySQL 8.4, Blade + Bootstrap 5 + jQuery, Vite, Sanctum para la API, Fortify para el inicio de sesión.</li>
+          <li><strong>Multi-tenant por empresa:</strong> todos los listados y búsquedas se filtran por el alcance del usuario; los identificadores de otra empresa no se encuentran.</li>
+          <li><strong>Lógica en servicios:</strong> las reglas de negocio (ingesta POS, cuotas, entregas, flotas, importación y notificaciones) viven en servicios usados tanto por las pantallas como por la API.</li>
+          <li><strong>API REST</strong> en <span class="code">/api/v1</span> con tokens por rol y un contrato OpenAPI (<span class="code">docs/api/openapi.json</span>).</li>
+          <li><strong>Calidad:</strong> pruebas automatizadas sobre MySQL, análisis estático (Larastan) y formato (Pint).</li>
+        </ul>
+        <h3>Ejecutar en local (resumen)</h3>
+        <pre><code># 1) Configura .env (base de datos) y arranca MySQL
+# 2) Instala dependencias y prepara la app
+composer install
+php artisan key:generate      # solo la primera vez
+php artisan migrate
+php artisan demo:seed         # datos y cuentas de demostración
+
+# 3) Compila los assets del front
+npm install &amp;&amp; npm run build
+
+# 4) Levanta el servidor
+php artisan serve             # http://127.0.0.1:8000</code></pre>
+        <p class="small">Con Docker, el proyecto incluye <span class="code">make setup</span> y <span class="code">make up</span>; consulta el README y la documentación del repositorio.</p>
+      </section>
+
+      <footer class="footer">
+        Manual de usuario del FleetFuel Portal · Proyecto de portafolio con datos ficticios · Sin afiliación con ningún distribuidor de combustible.
+      </footer>
+    </main>
+  </div>
+</div>
