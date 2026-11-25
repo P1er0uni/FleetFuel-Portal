@@ -27,6 +27,7 @@
         <div class="col-lg-4">
             <section class="card card-body shadow-sm h-100">
                 <h2 class="h5">General</h2>
+                <x-form.select name="theme" label="Tema" :options="$themes" :selected="$values['theme']" help="Claro u oscuro." />
                 <x-form.select name="language" label="Idioma" :options="$languages" :selected="$values['language']" />
                 <x-form.select name="date_format" label="Formato de fecha" :options="array_combine($dateFormats, $dateFormats)" :selected="$values['date_format']" />
                 <x-form.select name="items_per_page" label="Filas por página" :options="array_combine($itemsPerPageOptions, $itemsPerPageOptions)" :selected="$values['items_per_page']" />

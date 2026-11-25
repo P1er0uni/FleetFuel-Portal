@@ -53,7 +53,7 @@ class UserPreferenceServiceTest extends TestCase
         $user = User::factory()->create();
         $service = app(UserPreferenceService::class);
 
-        $this->assertSame('12', $service->get((int) $user->id, 'map_default_zoom'));
+        $this->assertSame('14', $service->get((int) $user->id, 'map_default_zoom'));
         $this->assertSame(15, $service->typed((int) $user->id, 'items_per_page'));
         $this->assertSame(UserPreferenceService::DASHBOARD_WIDGETS, $service->typed((int) $user->id, 'dashboard_widgets'));
     }

@@ -31,6 +31,7 @@ use App\Models\Vehicle;
 use App\Services\CredentialVerifier;
 use App\Services\ExchangeRates\FixtureExchangeRateProvider;
 use App\Services\ExchangeRates\HttpExchangeRateProvider;
+use App\Services\UserPreferenceService;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -120,17 +121,21 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * The bell in the layout needs the signed-in manager's unread count and
-     * five latest notifications. Computed once per page render, with two
-     * constant queries that never grow with the number of notifications.
+     * Data the layout needs on every page: the colour theme for every user
+     * (from their preferences) and, for managers/admins, the bell's unread
+     * count and five latest notifications.
      */
     private function shareNotificationBell(): void
     {
         View::composer('layouts.app', function ($view): void {
             $user = auth()->user();
+            $theme = $user instanceof User
+                ? app(UserPreferenceService::class)->theme((int) $user->id)
+                : 'light';
 
             if ($user instanceof User && ($user->isAdmin() || $user->isCompanyManager())) {
                 $view->with([
+                    'theme' => $theme,
                     'bellUnread' => Notification::query()->where('user_id', $user->id)->whereNull('read_at')->count(),
                     'bellRecent' => Notification::query()->where('user_id', $user->id)->orderByDesc('id')->limit(5)->get(),
                 ]);
@@ -138,7 +143,7 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            $view->with(['bellUnread' => 0, 'bellRecent' => collect()]);
+            $view->with(['theme' => $theme, 'bellUnread' => 0, 'bellRecent' => collect()]);
         });
     }
 

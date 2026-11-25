@@ -41,6 +41,7 @@ class PreferenceController extends Controller
             'dateFormats' => UserPreferenceService::DATE_FORMATS,
             'itemsPerPageOptions' => UserPreferenceService::ITEMS_PER_PAGE,
             'languages' => ['es' => 'Español'],
+            'themes' => UserPreferenceService::THEMES,
         ]);
     }
 

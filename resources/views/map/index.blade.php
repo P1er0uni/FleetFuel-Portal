@@ -98,7 +98,7 @@
             var stationsUrl = el.getAttribute('data-stations-url');
 
             var map = L.map(el, {scrollWheelZoom: true}).setView(
-                [center.lat || -33.4489, center.lng || -70.6693], center.zoom || 12
+                [center.lat || -12.0812, center.lng || -77.0333], center.zoom || 14
             );
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
