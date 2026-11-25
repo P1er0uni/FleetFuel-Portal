@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Mapa, favoritos y preferencias, fase 3 (`docs/sdd/fase-3-mapa-favoritos-preferencias/`):
+  - **Interactive station map.** `GET /api/v1/map/stations` (ability `map:read`) returns stations with coordinates, composed address, status, the products sold there and the day's transactions/liters/last fill (Beirut calendar). The `/map` page renders Leaflet + markercluster (CDN) with a filter panel and a "stations without location" section; link in the menu and on the dashboard.
+  - **Favorites.** New `user_favorites` table; `GET`/`POST /favorites`, `PUT /favorites/reorder`, `DELETE /favorites/{id}` for every role, with scope checks (a foreign entity is 404, a duplicate 422). Star toggle on fleet and vehicle pages; reorderable favorites panel on the dashboard.
+  - **Preferences.** New `user_preferences` table and `UserPreferenceService` (in-memory per-request cache). `GET`/`PUT /api/v1/preferences` and `GET`/`PUT /api/v1/preferences/{key}`; the `/preferences` page for every role. The dashboard renders only the chosen `dashboard_widgets`, reports preselect `default_fleet_id`, the station and notification lists use `items_per_page`, and the map uses `map_default_*`.
+  - New abilities: `map:read`, `favorites:read`/`favorites:write`, `preferences:read`/`preferences:write`; `openapi.json` 0.12.0 documents the four new paths.
+  - Fixed on the way: `ReportController` built the fleet filter options with `when()` passing the boolean condition instead of the company id, so the dropdown only ever listed company 1's fleets.
 - Importación masiva y notificaciones, fase 2 (`docs/sdd/fase-2-importacion-notificaciones/`):
   - Bulk CSV import of vehicles, drivers and cards. `App\Support\CsvImport\CsvTemplate`/`ImportResult` and `App\Services\BulkImportService`: exact header, per-row validation with the same rules as the forms, per-row transactions, `dry_run`, `fleet_name`/`vehicle_plate`/`driver_license` resolution, limits of 5000 rows / 5 MB, and one `audit_logs` row (`import.completed`) per import.
     - Web: `/import` with three tabs, template download, dry-run checkbox and a result table with per-row errors; link "Importar" in the menu.

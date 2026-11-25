@@ -9,12 +9,87 @@
 @section('content')
     <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
         <h1 class="h3 mb-0">Panel</h1>
-        <span class="text-body-secondary">
-            {{ $user->isAdmin() ? 'Todas las empresas' : $user->company?->name }}
-            · {{ $monthStart->locale('es')->translatedFormat('F Y') }} (hora de Beirut)
-        </span>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="text-body-secondary">
+                {{ $user->isAdmin() ? 'Todas las empresas' : $user->company?->name }}
+                · {{ $monthStart->locale('es')->translatedFormat('F Y') }} (hora de Beirut)
+            </span>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ route('map.index') }}">Mapa de estaciones</a>
+        </div>
     </div>
 
+    <section class="card shadow-sm mb-4" aria-labelledby="favorites-heading">
+        <div class="card-body">
+            <h2 id="favorites-heading" class="h5">Favoritos</h2>
+            @if (empty($favorites))
+                <p class="text-body-secondary mb-0">
+                    Marca flotas o vehículos con la estrella para abrirlos rápido desde aquí.
+                </p>
+            @else
+                <ul id="favorites-list" class="list-unstyled d-flex flex-wrap gap-2 mb-0">
+                    @foreach ($favorites as $favorite)
+                        <li class="border rounded px-2 py-1 bg-body d-flex align-items-center gap-2" data-id="{{ $favorite['id'] }}">
+                            <span class="text-body-secondary" style="cursor: grab;" aria-hidden="true">≡</span>
+                            <a href="{{ $favorite['url'] }}" class="text-decoration-none">{{ $favorite['label'] }}</a>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0 favorite-remove"
+                                    data-id="{{ $favorite['id'] }}" data-url="{{ route('favorites.destroy', $favorite['id']) }}"
+                                    aria-label="Quitar {{ $favorite['label'] }} de favoritos">×</button>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    </section>
+
+    @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+        <script>
+            (function () {
+                var list = document.getElementById('favorites-list');
+                if (list === null) { return; }
+
+                var token = document.querySelector('meta[name="csrf-token"]');
+                token = token ? token.getAttribute('content') : '';
+
+                if (typeof Sortable !== 'undefined') {
+                    new Sortable(list, {
+                        animation: 120,
+                        handle: 'span[aria-hidden="true"]',
+                        onEnd: function () {
+                            var ids = Array.prototype.map.call(
+                                list.querySelectorAll('[data-id]'),
+                                function (el) { return parseInt(el.getAttribute('data-id'), 10); }
+                            );
+                            fetch('{{ route('favorites.reorder') }}', {
+                                method: 'PUT',
+                                headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token},
+                                body: JSON.stringify({ids: ids}),
+                                credentials: 'same-origin',
+                            }).catch(function () {});
+                        }
+                    });
+                }
+
+                list.addEventListener('click', function (event) {
+                    var button = event.target.closest('.favorite-remove');
+                    if (button === null) { return; }
+                    event.preventDefault();
+                    fetch(button.getAttribute('data-url'), {
+                        method: 'DELETE',
+                        headers: {'Accept': 'application/json', 'X-CSRF-TOKEN': token},
+                        credentials: 'same-origin',
+                    }).then(function (response) {
+                        if (response.ok) {
+                            var item = button.closest('li');
+                            if (item !== null) { item.remove(); }
+                        }
+                    }).catch(function () {});
+                });
+            })();
+        </script>
+    @endpush
+
+    @if (in_array('summary', $widgets))
     <section aria-labelledby="month-heading" class="mb-4">
         <h2 id="month-heading" class="visually-hidden">Este mes</h2>
         <div class="row row-cols-2 row-cols-xl-4 g-2 g-md-3">
@@ -40,8 +115,10 @@
             <a href="{{ route('transactions.index') }}">Abre la lista de transacciones</a> para cualquier periodo.
         </p>
     </section>
+    @endif
 
     <div class="row g-4 mb-4">
+        @if (in_array('quota_alerts', $widgets))
         <div class="col-lg-7">
             <section class="card h-100 shadow-sm" aria-labelledby="quota-heading">
                 <div class="card-body">
@@ -82,7 +159,9 @@
                 </div>
             </section>
         </div>
+        @endif
 
+        @if (in_array('open_deliveries', $widgets))
         <div class="col-lg-5">
             <section class="card h-100 shadow-sm" aria-labelledby="deliveries-heading">
                 <div class="card-body">
@@ -115,8 +194,10 @@
                 </div>
             </section>
         </div>
+        @endif
     </div>
 
+    @if (in_array('fleet_stats', $widgets))
     <div class="row g-4 mb-4">
         <div class="col-lg-7">
             <section class="card h-100 shadow-sm" aria-labelledby="fleet-heading">
@@ -166,7 +247,9 @@
             </section>
         </div>
     </div>
+    @endif
 
+    @if (in_array('fleet_consumption', $widgets))
     <section class="card shadow-sm mb-4" aria-labelledby="fleet-usage-heading">
         <div class="card-body">
             <h2 id="fleet-usage-heading" class="h5">Consumo por flota</h2>
@@ -223,7 +306,9 @@
             @endif
         </div>
     </section>
+    @endif
 
+    @if (in_array('recent_transactions', $widgets))
     <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2">
         <h2 class="h5">Compras recientes</h2>
         <a class="small" href="{{ route('transactions.index') }}">Todas las transacciones</a>
@@ -234,4 +319,5 @@
         'showStation' => true,
         'showRateSource' => true,
     ])
+    @endif
 @endsection

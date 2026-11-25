@@ -9,6 +9,7 @@ use App\Models\Fleet;
 use App\Models\Product;
 use App\Models\Station;
 use App\Repositories\ReportRepository;
+use App\Services\UserPreferenceService;
 use App\Support\BusinessMonth;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
@@ -22,7 +23,7 @@ use Illuminate\View\View;
  */
 class ReportController extends Controller
 {
-    public function __construct(private readonly ReportRepository $reports) {}
+    public function __construct(private readonly ReportRepository $reports, private readonly UserPreferenceService $preferences) {}
 
     public function consumption(ReportRequest $request): View
     {
@@ -105,10 +106,12 @@ class ReportController extends Controller
             // The fleet filter (fase 1): the chosen company's fleets, the
             // manager's own, or every fleet for an admin without a company.
             'fleets' => Fleet::query()
-                ->when($companyId !== null, fn ($query, $company) => $query->where('company_id', $company))
+                ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
                 ->orderBy('name')
                 ->pluck('name', 'id'),
             'fleetName' => $scope->fleetId === null ? null : Fleet::query()->whereKey($scope->fleetId)->value('name'),
+            // Preselect the user's default fleet when no fleet filter is sent (Part C).
+            'defaultFleetId' => $this->preferences->defaultFleetId((int) $user->id),
         ]);
     }
 

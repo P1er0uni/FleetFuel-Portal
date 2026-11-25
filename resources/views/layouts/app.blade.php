@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@hasSection('title')@yield('title') · @endif{{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
 </head>
 <body class="bg-body-tertiary">
     <a class="visually-hidden-focusable skip-link" href="#main">Saltar al contenido principal</a>
@@ -21,6 +22,7 @@
                     $navUser->can('viewReports') ? ['reports.consumption', 'Reportes', 'reports.*'] : null,
                     $navUser->can('viewAny', App\Models\DeliveryOrder::class) ? ['deliveries.index', 'Entregas', 'deliveries.*'] : null,
                     $navUser->can('useNotifications') ? ['notifications.index', 'Notificaciones', 'notifications.index'] : null,
+                    ($navUser->isAdmin() || $navUser->isCompanyManager()) ? ['map.index', 'Mapa', 'map.*'] : null,
                 ],
                 'Flota' => [
                     $navUser->can('viewAny', App\Models\Company::class) ? ['companies.index', 'Empresas', 'companies.*'] : null,
@@ -85,6 +87,7 @@
                         <div class="account mt-auto pt-3 px-2">
                             <div class="small">{{ $navUser->name }}</div>
                             <div class="small mb-2">{{ $navUser->role->label() }}</div>
+                            <a class="d-block small text-white mb-2" href="{{ route('preferences.edit') }}">Preferencias</a>
                             {{-- Signing out changes state, so it is a POST with a CSRF token, never a link. --}}
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
@@ -122,5 +125,6 @@
             @include('layouts._footer')
         </div>
     @endauth
+    @stack('scripts')
 </body>
 </html>

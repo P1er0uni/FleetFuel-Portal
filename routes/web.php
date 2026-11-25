@@ -6,11 +6,14 @@ use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DeliveryOrderController;
 use App\Http\Controllers\Web\DriverController;
 use App\Http\Controllers\Web\ExchangeRateController;
+use App\Http\Controllers\Web\FavoriteController;
 use App\Http\Controllers\Web\FleetController;
 use App\Http\Controllers\Web\FuelCardController;
 use App\Http\Controllers\Web\ImportController;
+use App\Http\Controllers\Web\MapController;
 use App\Http\Controllers\Web\NotificationController;
 use App\Http\Controllers\Web\NotificationRuleController;
+use App\Http\Controllers\Web\PreferenceController;
 use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\ProductPriceController;
 use App\Http\Controllers\Web\ReportController;
@@ -60,6 +63,18 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->whereNumber('transaction')
         ->name('transactions.show');
 
+    // Favourites (every role): the star toggle and the dashboard reorder
+    // (docs/sdd/fase-3-mapa-favoritos-preferencias/, Part B).
+    Route::post('/favorites/toggle', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
+    Route::post('/favorites', [FavoriteController::class, 'store'])->name('favorites.store');
+    Route::put('/favorites/reorder', [FavoriteController::class, 'reorder'])->name('favorites.reorder');
+    Route::delete('/favorites/{favorite}', [FavoriteController::class, 'destroy'])
+        ->whereNumber('favorite')->name('favorites.destroy');
+
+    // Preferences, for every role (Part C).
+    Route::get('/preferences', [PreferenceController::class, 'edit'])->name('preferences.edit');
+    Route::put('/preferences', [PreferenceController::class, 'update'])->name('preferences.update');
+
     // Reference data: every role reads it; only admins change it.
     Route::get('/stations', [StationController::class, 'index'])->name('stations.index');
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
@@ -107,6 +122,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::delete('/fleets/{fleet}/rules/{rule}', [FleetController::class, 'destroyRule'])->name('fleets.rules.destroy');
         Route::post('/fleets/{fleet}/assign', [FleetController::class, 'assign'])->name('fleets.assign');
         Route::post('/fleets/{fleet}/unassign', [FleetController::class, 'unassign'])->name('fleets.unassign');
+
+        // Interactive station map (docs/sdd/fase-3-mapa-favoritos-preferencias/, Part A).
+        Route::get('/map', [MapController::class, 'index'])->name('map.index');
+        Route::get('/map/stations', [MapController::class, 'data'])->name('map.data');
 
         // Bulk CSV import of vehicles, drivers and cards
         // (docs/sdd/fase-2-importacion-notificaciones/spec.md, A2). The type is
