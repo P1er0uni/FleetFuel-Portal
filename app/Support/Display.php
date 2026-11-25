@@ -32,4 +32,15 @@ final class Display
             ->setTimezone($timezone ?? (string) config('fleetfuel.business_timezone'))
             ->format('Y-m-d H:i');
     }
+
+    /**
+     * The same instant in the business timezone, formatted with a user's
+     * `date_format` preference (Part C, D8).
+     */
+    public static function date(CarbonInterface $instant, string $format = 'd/m/Y', ?string $timezone = null): string
+    {
+        return CarbonImmutable::instance($instant)
+            ->setTimezone($timezone ?? (string) config('fleetfuel.business_timezone'))
+            ->format($format);
+    }
 }

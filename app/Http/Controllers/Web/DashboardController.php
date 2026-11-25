@@ -14,7 +14,9 @@ use App\Models\FuelTransaction;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Repositories\ReportRepository;
+use App\Services\FavoriteService;
 use App\Services\PriceResolver;
+use App\Services\UserPreferenceService;
 use App\Support\BusinessMonth;
 use App\Support\FleetQuota;
 use Carbon\CarbonImmutable;
@@ -36,7 +38,7 @@ class DashboardController extends Controller
 {
     private const OPEN_DELIVERIES = [DeliveryStatus::Pending, DeliveryStatus::Scheduled, DeliveryStatus::OutForDelivery];
 
-    public function __invoke(Request $request, ReportRepository $reports, PriceResolver $prices): View
+    public function __invoke(Request $request, ReportRepository $reports, PriceResolver $prices, FavoriteService $favorites, UserPreferenceService $preferences): View
     {
         /** @var User $user */
         $user = $request->user();
@@ -97,6 +99,9 @@ class DashboardController extends Controller
                 ->get(),
             'rate' => $prices->findRate($now),
             'now' => $now,
+            'favorites' => $favorites->list($user),
+            // Visible widgets (Part C); null preference means every widget.
+            'widgets' => $preferences->dashboardWidgets((int) $user->id) ?? UserPreferenceService::DASHBOARD_WIDGETS,
             'recent' => FuelTransaction::query()
                 ->visibleTo($user)
                 ->with(['company', 'station', 'product', 'fuelCard'])

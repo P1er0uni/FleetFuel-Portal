@@ -37,15 +37,18 @@ enum UserRole: string
                 'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
                 'deliveries:status', 'reports:read', 'exports:read',
                 'notifications:read', 'notifications:write',
+                'map:read', 'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
             ],
             self::CompanyManager => [
                 'reference:read', 'transactions:read', 'cards:read', 'cards:write',
                 'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
                 'reports:read', 'exports:read',
                 'notifications:read', 'notifications:write',
+                'map:read', 'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
             ],
             self::StationOperator => [
                 'reference:read', 'transactions:create', 'transactions:read', 'cards:read',
+                'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
             ],
         };
     }

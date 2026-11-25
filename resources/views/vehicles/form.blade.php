@@ -3,7 +3,12 @@
 @section('title', $vehicle ? 'Editar vehículo' : 'Agregar vehículo')
 
 @section('content')
-    <h1 class="h3 mb-3">{{ $vehicle ? 'Editar vehículo '.$vehicle->plate_no : 'Agregar vehículo' }}</h1>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <h1 class="h3 mb-0">{{ $vehicle ? 'Editar vehículo '.$vehicle->plate_no : 'Agregar vehículo' }}</h1>
+        @if ($vehicle)
+            @include('partials.favorite-star', ['type' => 'vehicle', 'id' => $vehicle->id])
+        @endif
+    </div>
 
     <div class="row">
         <div class="col-lg-7">

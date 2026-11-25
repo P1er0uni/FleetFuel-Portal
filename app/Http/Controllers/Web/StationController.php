@@ -8,6 +8,7 @@ use App\Http\Requests\Reference\StationRequest;
 use App\Http\Requests\SetActiveRequest;
 use App\Models\Station;
 use App\Services\ReferenceDataService;
+use App\Services\UserPreferenceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +22,7 @@ class StationController extends Controller
 {
     use FiltersLists;
 
-    public function index(Request $request): View
+    public function index(Request $request, UserPreferenceService $preferences): View
     {
         Gate::authorize('viewAny', Station::class);
         $user = $this->actor($request);
@@ -33,7 +34,7 @@ class StationController extends Controller
         }
 
         return view('stations.index', [
-            'stations' => $query->orderBy('name')->orderBy('id')->paginate(25)->withQueryString(),
+            'stations' => $query->orderBy('name')->orderBy('id')->paginate($preferences->itemsPerPage((int) $user->id, 25))->withQueryString(),
         ]);
     }
 

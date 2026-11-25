@@ -15,6 +15,7 @@ class UserRoleTest extends TestCase
             'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
             'deliveries:status', 'reports:read', 'exports:read',
             'notifications:read', 'notifications:write',
+            'map:read', 'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
         ], UserRole::Admin->tokenAbilities());
 
         $this->assertSame([
@@ -22,10 +23,12 @@ class UserRoleTest extends TestCase
             'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
             'reports:read', 'exports:read',
             'notifications:read', 'notifications:write',
+            'map:read', 'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
         ], UserRole::CompanyManager->tokenAbilities());
 
         $this->assertSame([
             'reference:read', 'transactions:create', 'transactions:read', 'cards:read',
+            'favorites:read', 'favorites:write', 'preferences:read', 'preferences:write',
         ], UserRole::StationOperator->tokenAbilities());
     }
 

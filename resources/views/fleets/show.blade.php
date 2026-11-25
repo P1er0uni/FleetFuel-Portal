@@ -15,7 +15,10 @@
                 <span class="badge text-bg-secondary">Inactiva</span>
             @endif
         </h1>
-        <span class="text-body-secondary">{{ $fleet->company->name }}</span>
+        <span class="text-body-secondary d-inline-flex align-items-center gap-2">
+            {{ $fleet->company->name }}
+            @include('partials.favorite-star', ['type' => 'fleet', 'id' => $fleet->id])
+        </span>
     </div>
 
     @if ($fleet->description)

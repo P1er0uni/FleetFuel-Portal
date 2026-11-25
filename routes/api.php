@@ -3,11 +3,14 @@
 use App\Http\Controllers\Api\V1\CardBalanceController;
 use App\Http\Controllers\Api\V1\DeliveryOrderController;
 use App\Http\Controllers\Api\V1\DriverController;
+use App\Http\Controllers\Api\V1\FavoriteController;
 use App\Http\Controllers\Api\V1\FleetController;
 use App\Http\Controllers\Api\V1\FuelCardController;
 use App\Http\Controllers\Api\V1\ImportController;
+use App\Http\Controllers\Api\V1\MapController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\NotificationRuleController;
+use App\Http\Controllers\Api\V1\PreferenceController;
 use App\Http\Controllers\Api\V1\ProductPriceController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\StationController;
@@ -36,6 +39,21 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::get('stations', [StationController::class, 'index'])->name('stations.index');
             Route::get('products/prices', [ProductPriceController::class, 'index'])->name('products.prices');
         });
+
+        // Favourites, for every role (docs/sdd/fase-3-mapa-favoritos-preferencias/, Part B).
+        Route::get('favorites', [FavoriteController::class, 'index'])->middleware('abilities:favorites:read')->name('favorites.index');
+        Route::post('favorites', [FavoriteController::class, 'store'])->middleware('abilities:favorites:write')->name('favorites.store');
+        Route::put('favorites/reorder', [FavoriteController::class, 'reorder'])->middleware('abilities:favorites:write')->name('favorites.reorder');
+        Route::delete('favorites/{favorite}', [FavoriteController::class, 'destroy'])
+            ->middleware('abilities:favorites:write')->whereNumber('favorite')->name('favorites.destroy');
+
+        // Preferences, for every role (Part C).
+        Route::get('preferences', [PreferenceController::class, 'index'])->middleware('abilities:preferences:read')->name('preferences.index');
+        Route::put('preferences', [PreferenceController::class, 'update'])->middleware('abilities:preferences:write')->name('preferences.update');
+        Route::get('preferences/{key}', [PreferenceController::class, 'showKey'])
+            ->middleware('abilities:preferences:read')->name('preferences.show');
+        Route::put('preferences/{key}', [PreferenceController::class, 'updateKey'])
+            ->middleware('abilities:preferences:write')->name('preferences.update-key');
 
         // POS ingestion: station operators only, 60 requests/minute per station.
         Route::post('transactions', [TransactionController::class, 'store'])
@@ -67,6 +85,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::post('vehicles', [VehicleController::class, 'store'])->middleware('abilities:fleet:write')->name('vehicles.store');
             Route::get('drivers', [DriverController::class, 'index'])->middleware('abilities:fleet:read')->name('drivers.index');
             Route::post('drivers', [DriverController::class, 'store'])->middleware('abilities:fleet:write')->name('drivers.store');
+
+            // Station map markers (docs/sdd/fase-3-mapa-favoritos-preferencias/, Part A).
+            Route::get('map/stations', [MapController::class, 'stations'])->middleware('abilities:map:read')->name('map.stations');
 
             // Bulk CSV import (docs/sdd/fase-2-importacion-notificaciones/spec.md, D8):
             // a multipart file or a JSON rows array; a template download. The

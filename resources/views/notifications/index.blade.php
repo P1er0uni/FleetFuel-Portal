@@ -67,7 +67,7 @@
                             </td>
                             <td class="small">{{ $notification->message }}</td>
                             <td class="small">{{ $notification->event_type->label() }}</td>
-                            <td class="text-nowrap small">{{ Display::businessTime($notification->created_at) }}</td>
+                            <td class="text-nowrap small">{{ Display::date($notification->created_at, $dateFormat ?? 'd/m/Y') }}</td>
                             <td class="text-end">
                                 @if ($notification->read_at === null)
                                     <form method="POST" action="{{ route('notifications.read', $notification) }}">

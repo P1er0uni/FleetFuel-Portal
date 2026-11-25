@@ -60,7 +60,7 @@
         <select id="filter-fleet" name="fleet_id" class="form-select form-select-sm @error('fleet_id') is-invalid @enderror">
             <option value="">Todas las flotas</option>
             @foreach ($fleets as $id => $name)
-                <option value="{{ $id }}" @selected(request()->string('fleet_id')->toString() === (string) $id)>{{ $name }}</option>
+                <option value="{{ $id }}" @selected(request()->string('fleet_id')->toString() === (string) $id || (request()->string('fleet_id')->toString() === '' && isset($defaultFleetId) && (string) $defaultFleetId === (string) $id))>{{ $name }}</option>
             @endforeach
         </select>
         @error('fleet_id')<div class="invalid-feedback">{{ $message }}</div>@enderror

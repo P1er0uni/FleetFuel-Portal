@@ -89,6 +89,44 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
+## Most recent session: mapa + favoritos + preferencias (fase 3)
+
+**Date:** 2026-11-25.
+
+**Goal and actual state:**
+- Goal: the user's prompt `C:\Users\nunezpi\fleetfuel-sdd-prompts\fase-3-mapa-favoritos-preferencias.md`, landed in `docs/sdd/fase-3-mapa-favoritos-preferencias/` — interactive station map, favorites and user preferences, adapted to the real codebase (routes without `/admin`, roles `admin`/`company_manager`/`station_operator`, and the actual `stations` columns).
+- Result: all three parts done, documentation written, and the full suite green.
+- Environment note: PHP 8.3.37 + MySQL 8.4.13 portables on Windows (MySQL restarted with `~/tools/start-fleetfuel-mysql.ps1`).
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan test tests/Feature/Map tests/Feature/Api/MapApiTest.php` | 8 passed |
+| `php artisan test tests/Feature/Favorites tests/Feature/Api/FavoriteApiTest.php` | 10 passed |
+| `php artisan test tests/Feature/Preferences tests/Feature/Api/PreferenceApiTest.php` | 19 passed |
+| `php artisan test tests/Feature/Api/OpenApiContractTest.php` | 7 passed (route/ability/role parity and official schema) |
+| `vendor/bin/pint` / `phpstan analyse` (app + simulator) | passed / `[OK] No errors` |
+| `php artisan test` (suite completa) | **709 passed / 7098 assertions** (195.14 s) |
+
+### What changed
+
+- **Part A — Map:** `Services\StationMapService` (shared), `Api\V1\MapController` + `Requests\Api\V1\MapStationsRequest`, `Web\MapController` (`/map`, `/map/stations`), `views/map/index.blade.php` (Leaflet + markercluster via CDN), menu link and dashboard button.
+- **Part B — Favorites:** `user_favorites` migration, `UserFavorite` model + factory, `FavoriteService`, `Api\V1\FavoriteController` (+ requests), `Web\FavoriteController`, `partials/favorite-star` on fleet and vehicle pages, dashboard favorites panel (SortableJS), new abilities `favorites:read`/`favorites:write`.
+- **Part C — Preferences:** `user_preferences` migration, `UserPreference` model + factory, `UserPreferenceService` (per-request cache), `HasPreferenceRules` trait, web + API requests/controllers, `views/preferences/edit.blade.php`, account-menu link; dashboard widget visibility, report default-fleet preselection, `items_per_page` on stations/notifications, `Display::date()`.
+- **Contract / docs:** `openapi.json` paths and schemas for map, favorites and preferences; `docs/05-API-CONTRACT.md`, `docs/03-DATA-MODEL.md` (diagram + tables), `CHANGELOG.md`, this file and the SDD plan.
+- **Fix found on the way:** `ReportController` passed a boolean to `when()` where it meant the company id, so the report fleet dropdown only listed company 1's fleets.
+
+### Not run or not verified
+
+- JavaScript tests and the Vite build: the map, star toggle, drag-and-drop and geolocation are inline/Blade scripts loaded from a CDN; CI runs the JS suite on push.
+- A real browser walkthrough of the map tiles/clustering: the page and endpoints are tested, not the visual rendering.
+- The phase is uncommitted on the `fase-3-mapa-favoritos-preferencias` branch.
+
+**Suggested commit message:** `feat: add station map, favorites and user preferences`.
+
+**One concept to explain:** per-request caching vs a singleton. `UserPreferenceService` keeps a user's preference rows in memory so several reads in one request cost one query — but it is registered as an ordinary binding, not a singleton. In production each request is its own PHP process, so either way the cache never outlives the request; in the test suite, where one process renders many requests, an ordinary binding keeps each request's query count comparable (a singleton would have leaked the cache across requests and skewed the dashboard's N+1 count check).
+
 ## Most recent session: importación masiva + notificaciones (fase 2)
 
 **Date:** 2026-11-25.

@@ -8,9 +8,9 @@ Send `Accept: application/json`; JSON writes also send `Content-Type: applicatio
 
 | Role | Allowed token abilities |
 | --- | --- |
-| Admin | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, deliveries:status, reports:read, exports:read, notifications:read, notifications:write |
-| Company manager | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, reports:read, exports:read, notifications:read, notifications:write |
-| Station operator | reference:read, transactions:create, transactions:read, cards:read |
+| Admin | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, deliveries:status, reports:read, exports:read, notifications:read, notifications:write, map:read, favorites:read, favorites:write, preferences:read, preferences:write |
+| Company manager | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, reports:read, exports:read, notifications:read, notifications:write, map:read, favorites:read, favorites:write, preferences:read, preferences:write |
+| Station operator | reference:read, transactions:create, transactions:read, cards:read, favorites:read, favorites:write, preferences:read, preferences:write |
 
 Role/ownership policies run even if a token incorrectly has a wider ability. Reject cookies-only access to token API routes; use session-authorized web/AJAX routes for browser screens. DELETE token is available to any valid token.
 
@@ -65,6 +65,15 @@ For validation errors, details maps field names to arrays of messages. For other
 | GET `/notifications/rules/{id}` | notifications:read | One rule |
 | PUT `/notifications/rules/{id}` | notifications:write | The rule, updated |
 | DELETE `/notifications/rules/{id}` | notifications:write | 204 |
+| GET `/map/stations` | map:read; admin / company manager | Station markers with coordinates and the day's figures |
+| GET `/favorites` | favorites:read; any role | The caller's favorites, ordered by position |
+| POST `/favorites` | favorites:write; any role | 201 created favorite |
+| PUT `/favorites/reorder` | favorites:write; any role | How many were reordered |
+| DELETE `/favorites/{id}` | favorites:write; any role | 204 |
+| GET `/preferences` | preferences:read; any role | All of the caller's preferences |
+| PUT `/preferences` | preferences:write; any role | Partial update, returns all |
+| GET `/preferences/{key}` | preferences:read; any role | One preference |
+| PUT `/preferences/{key}` | preferences:write; any role | One preference, updated |
 
 Additional master-data writes and reports are served by web controllers in MVP; this API is intentionally finite. All routes above must be real and documented by M08. No undefined `v_vehicle_transactions` view from the research: report against the explicit ledger schema or create/test a view deliberately.
 
@@ -311,3 +320,12 @@ The notification endpoints (`docs/sdd/fase-2-importacion-notificaciones/spec.md`
 - **Events.** Seven events fire from the services: `quota_exceeded`, `quota_warning`, `card_blocked`, `anomaly_detected` (rapid fill < 30 min, D9), `delivery_completed`, `delivery_cancelled`, `fleet_rule_violated`. The listener matches active rules by company/fleet/event, applies the threshold only to `quota_warning`, delivers through the rule's channel, and deduplicates the same `(rule, event, entity)` within one hour (D11).
 - **Delivery.** `in_app` creates one notification per active company manager; `email` sends a `NotificationMail` (array mailer in tests; real SMTP is a deployment step); `log` writes an `audit_logs` row (`notification.sent`) and a Laravel log entry.
 
+
+## Map, favorites and preferences (fase 3)
+
+The phase-3 endpoints (`docs/sdd/fase-3-mapa-favoritos-preferencias/`) are live in `openapi.json` 0.12.0. Details:
+
+- **Map markers.** `GET /api/v1/map/stations` (ability `map:read`, admin and company manager) returns only stations with both coordinates. The schema has no `address`/`status`/`company_id` on `stations`, so `address` is composed from `district, governorate` and `status` derives from `is_active` (D3). `products` are the codes actually sold there (D5). `transactions_today`, `liters_today` and `last_transaction_at` follow the Beirut calendar (D6). Filters: `status` (`all`/`active`/`inactive`), `product` (a product code) and `q` (name); unknown parameters are 422.
+- **Favorites.** `GET`/`POST /api/v1/favorites`, `PUT /api/v1/favorites/reorder` and `DELETE /api/v1/favorites/{id}`, for every role. Each row carries a resolved `label` and `url`. Types are `fleet`, `vehicle` and `station`; `report` is deferred (no saved-reports table, D7). Adding an entity outside the caller's scope is 404; a duplicate is 422; reorder sets `position` from the given id order.
+- **Preferences.** `GET`/`PUT /api/v1/preferences` and `GET`/`PUT /api/v1/preferences/{key}`, for every role. Keys: `default_fleet_id`, `dashboard_widgets`, `map_default_zoom`, `map_default_lat`, `map_default_lng`, `date_format`, `language`, `items_per_page`. A bulk update is a partial map of the keys to change; an unknown key is 404. A manager's `default_fleet_id` must be one of their own company's fleets (422 otherwise).
+- **Web.** `/map` renders the Leaflet map (admin and company manager) with the JSON from a session endpoint; the star on a fleet or vehicle toggles a favorite over AJAX; the dashboard shows a reorderable favorites panel; `/preferences` saves the same keys. The dashboard renders only the chosen `dashboard_widgets` (unknown ones are skipped); the reports preselect `default_fleet_id`; the station and notification lists use `items_per_page`.

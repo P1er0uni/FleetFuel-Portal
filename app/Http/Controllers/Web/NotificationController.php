@@ -6,6 +6,7 @@ use App\Enums\NotificationEventType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Notifications\ListNotificationsRequest;
 use App\Models\Notification;
+use App\Services\UserPreferenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ use Illuminate\View\View;
  */
 class NotificationController extends Controller
 {
-    public function index(ListNotificationsRequest $request): View
+    public function index(ListNotificationsRequest $request, UserPreferenceService $preferences): View
     {
         $user = $request->actor();
         $status = $request->filterValue('status');
@@ -32,13 +33,14 @@ class NotificationController extends Controller
             ->when($status === 'read', fn ($query) => $query->whereNotNull('read_at'))
             ->when($type !== null, fn ($query) => $query->where('event_type', $type))
             ->orderByDesc('id')
-            ->paginate(ListNotificationsRequest::PER_PAGE)
+            ->paginate($preferences->itemsPerPage((int) $user->id, ListNotificationsRequest::PER_PAGE))
             ->withQueryString();
 
         return view('notifications.index', [
             'notifications' => $notifications,
             'filters' => ['status' => $status, 'event_type' => $type],
             'types' => NotificationEventType::cases(),
+            'dateFormat' => $preferences->dateFormat((int) $user->id),
         ]);
     }
 
