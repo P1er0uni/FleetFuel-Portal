@@ -4,10 +4,10 @@
 @php($status = $exception->getStatusCode())
 
 @section('code', (string) $status)
-@section('title', $status === 429 ? 'Too many requests' : 'Request not accepted')
+@section('title', $status === 429 ? 'Demasiadas solicitudes' : 'Solicitud no aceptada')
 @section('message', $status === 429
-    ? 'Too many attempts in a short time. Wait a minute, then try again.'
-    : 'The request could not be completed. Go back and try again.')
+    ? 'Demasiados intentos en poco tiempo. Espera un minuto y vuelve a intentarlo.'
+    : 'No se pudo completar la solicitud. Regresa y vuelve a intentarlo.')
 @section('actions')
-    <a class="btn btn-primary" href="{{ url('/') }}">Go to the start page</a>
+    <a class="btn btn-primary" href="{{ url('/') }}">Ir a la página de inicio</a>
 @endsection

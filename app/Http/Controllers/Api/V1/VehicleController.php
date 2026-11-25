@@ -9,13 +9,13 @@ use App\Http\Requests\Api\V1\StoreVehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\User;
 use App\Models\Vehicle;
-use App\Services\FleetService;
+use App\Services\VehicleAndDriverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Vehicles for admins (every company) and company managers (their own).
- * Creation goes through FleetService, like the web form.
+ * Creation goes through VehicleAndDriverService, like the web form.
  */
 class VehicleController extends Controller
 {
@@ -33,7 +33,7 @@ class VehicleController extends Controller
         return $this->pageResponse($page, VehicleResource::class, $request);
     }
 
-    public function store(StoreVehicleRequest $request, FleetService $fleet): JsonResponse
+    public function store(StoreVehicleRequest $request, VehicleAndDriverService $fleet): JsonResponse
     {
         $vehicle = $fleet->createVehicle($request->company(), $request->validated(), $this->user($request));
 

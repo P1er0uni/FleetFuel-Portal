@@ -41,14 +41,14 @@ class IntegrationStatusScreenTest extends TestCase
         $this->actingAs($this->admin())
             ->get(route('integrations.exchange-rates'))
             ->assertOk()
-            ->assertSee('Fixture mode')
-            ->assertSeeInOrder(['Rate in effect now', '89,500.00000000', 'Fixture (synthetic)'])
-            ->assertSee('No sync has run in this mode yet.')
+            ->assertSee('Modo fixture')
+            ->assertSeeInOrder(['Tasa vigente ahora', '89,500.00000000', 'Fixture (sintética)'])
+            ->assertSee('Todavía no ha corrido ninguna sincronización en este modo.')
             // The seeded override has already expired.
-            ->assertSeeInOrder(['Recent overrides', '89,700.00000000', 'Expired', 'Demo scenario: temporary bank-rate adjustment'])
+            ->assertSeeInOrder(['Ajustes recientes', '89,700.00000000', 'Expirada', 'Escenario demo: ajuste temporal de tasa bancaria'])
             ->assertDontSee('Rates By Exchange Rate API');
 
-        $this->get(route('dashboard'))->assertSee('Exchange rates');
+        $this->get(route('dashboard'))->assertSee('Tasas de cambio');
     }
 
     public function test_other_roles_cannot_open_the_page_or_enter_an_override(): void
@@ -63,7 +63,7 @@ class IntegrationStatusScreenTest extends TestCase
             ])->assertForbidden();
         }
 
-        $this->get(route('products.index'))->assertOk()->assertDontSee('Exchange rates');
+        $this->get(route('products.index'))->assertOk()->assertDontSee('Tasas de cambio');
         $this->assertSame(1, ExchangeRate::query()->where('source', RateSource::Manual)->count());
     }
 
@@ -98,8 +98,8 @@ class IntegrationStatusScreenTest extends TestCase
 
         $this->assertTrue($override->is(app(PriceResolver::class)->rateAt(CarbonImmutable::now())));
         $this->get(route('integrations.exchange-rates'))->assertOk()
-            ->assertSeeInOrder(['Rate in effect now', '90,250.50000000', 'Manual override', 'Bank holiday adjustment'])
-            ->assertSee('In effect');
+            ->assertSeeInOrder(['Tasa vigente ahora', '90,250.50000000', 'Ajuste manual', 'Bank holiday adjustment'])
+            ->assertSee('En uso');
     }
 
     public function test_a_future_override_applies_only_from_its_start(): void
@@ -119,7 +119,7 @@ class IntegrationStatusScreenTest extends TestCase
         $this->assertSame('91000.00000000', $resolver->rateAt(CarbonImmutable::parse('2026-09-28T12:00:00Z'))->rate);
         $this->assertSame(RateSource::Fixture, $resolver->rateAt(CarbonImmutable::parse('2026-09-28T18:00:00Z'))->source);
 
-        $this->get(route('integrations.exchange-rates'))->assertOk()->assertSee('Scheduled');
+        $this->get(route('integrations.exchange-rates'))->assertOk()->assertSee('Programada');
     }
 
     /**
@@ -170,9 +170,9 @@ class IntegrationStatusScreenTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())->get(route('integrations.exchange-rates'))->assertOk()
-            ->assertSee('Sync degraded.')
-            ->assertSee('could not be reached')
-            ->assertSee('Stored rates are unchanged');
+            ->assertSee('Sincronización degradada.')
+            ->assertSee('No se pudo contactar al proveedor')
+            ->assertSee('Las tasas almacenadas no cambian');
     }
 
     public function test_the_page_warns_when_no_rate_is_valid(): void
@@ -181,7 +181,7 @@ class IntegrationStatusScreenTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-10-02T09:00:00Z'));
 
         $this->actingAs($this->admin())->get(route('integrations.exchange-rates'))->assertOk()
-            ->assertSee('No valid rate.')
+            ->assertSee('Sin tasa válida.')
             ->assertSee('rate_unavailable');
     }
 
@@ -195,8 +195,8 @@ class IntegrationStatusScreenTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())->get(route('integrations.exchange-rates'))->assertOk()
-            ->assertSee('Live mode')
-            ->assertSeeInOrder(['Rate in effect now', '89,480.00000000', 'Provider'])
+            ->assertSee('Modo en vivo')
+            ->assertSeeInOrder(['Tasa vigente ahora', '89,480.00000000', 'Proveedor'])
             ->assertSee('Rates By Exchange Rate API');
 
         Http::assertNothingSent();

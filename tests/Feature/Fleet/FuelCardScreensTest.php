@@ -85,10 +85,10 @@ class FuelCardScreensTest extends TestCase
             ->from('/cards/create')
             ->post('/cards', ['vehicle_id' => $this->vehicle('CED-201')->id])
             ->assertRedirect('/cards/create')
-            ->assertSessionHasErrors(['vehicle_id' => 'Choose an active vehicle of this company.']);
+            ->assertSessionHasErrors(['vehicle_id' => 'Elige un vehículo activo de esta empresa.']);
 
         $this->post('/cards', ['driver_id' => $this->driver('CED-DL-2001')->id])
-            ->assertSessionHasErrors(['driver_id' => 'Choose an active driver of this company.']);
+            ->assertSessionHasErrors(['driver_id' => 'Elige un conductor activo de esta empresa.']);
 
         $this->actingAs($this->admin())
             ->post('/cards', ['company_id' => $this->atlas()->id, 'vehicle_id' => $this->vehicle('CED-201')->id])
@@ -108,7 +108,7 @@ class FuelCardScreensTest extends TestCase
 
         foreach ([$this->cedar()->id, $this->atlas()->id] as $companyId) {
             $this->post('/cards', ['company_id' => $companyId])
-                ->assertSessionHasErrors(['company_id' => 'The company is set from your account and cannot be chosen.']);
+                ->assertSessionHasErrors(['company_id' => 'La empresa se toma de tu cuenta y no puede elegirse.']);
         }
 
         // ?company= is ignored for managers: the form still shows their own fleet.
@@ -133,8 +133,8 @@ class FuelCardScreensTest extends TestCase
         $this->assertSame($this->cedar()->id, FuelCard::query()->latest('id')->firstOrFail()->company_id);
 
         $this->cedar()->forceFill(['status' => CompanyStatus::Inactive])->save();
-        $this->post('/cards', ['company_id' => $this->cedar()->id])->assertSessionHasErrors(['company_id' => 'Choose an active company.']);
-        $this->post('/cards', [])->assertSessionHasErrors(['company_id' => 'Choose a company.']);
+        $this->post('/cards', ['company_id' => $this->cedar()->id])->assertSessionHasErrors(['company_id' => 'Elige una empresa activa.']);
+        $this->post('/cards', [])->assertSessionHasErrors(['company_id' => 'Elige una empresa.']);
     }
 
     public function test_the_vehicle_fuel_type_limits_the_product_restriction(): void
@@ -181,7 +181,7 @@ class FuelCardScreensTest extends TestCase
         $this->actingAs($this->atlasManager())
             ->get(route('cards.edit', $card))
             ->assertOk()
-            ->assertSee('has already been used');
+            ->assertSee('ya se usó');
 
         $this->from(route('cards.edit', $card))
             ->put(route('cards.update', $card), [
@@ -203,7 +203,7 @@ class FuelCardScreensTest extends TestCase
 
         $this->actingAs($this->admin())
             ->put(route('cards.update', $card), ['company_id' => $this->cedar()->id])
-            ->assertSessionHasErrors(['company_id' => 'A card cannot move to another company.']);
+            ->assertSessionHasErrors(['company_id' => 'Una tarjeta no puede cambiar a otra empresa.']);
         $this->patch(route('cards.limits', $card), ['company_id' => $this->cedar()->id, 'monthly_limit_l' => '10'])
             ->assertSessionHasErrors('company_id');
 
@@ -219,7 +219,7 @@ class FuelCardScreensTest extends TestCase
         $this->actingAs($manager)
             ->patch(route('cards.limits', $card), ['monthly_limit_l' => '80', 'monthly_limit_usd' => ''])
             ->assertRedirect(route('cards.show', $card))
-            ->assertSessionHas('status', 'Monthly limits saved.');
+            ->assertSessionHas('status', 'Límites mensuales guardados.');
 
         $card->refresh();
         $this->assertSame('80.00', $card->monthly_limit_l);
@@ -264,7 +264,7 @@ class FuelCardScreensTest extends TestCase
         $this->assertSame('1.00', $card->refresh()->monthly_limit_l);
         $audit = AuditLog::query()->where('action', 'card.limits_changed')->where('auditable_id', $card->id)->sole();
         $this->assertTrue($audit->new_values['below_current_usage'] ?? null);
-        $this->get(route('cards.show', $card))->assertSee('Over quota this month');
+        $this->get(route('cards.show', $card))->assertSee('Sobre cuota este mes');
     }
 
     /** T08: block, unblock and archive are audited; archive is final. */
@@ -411,9 +411,9 @@ class FuelCardScreensTest extends TestCase
 
         $this->actingAs($this->admin())->get(route('cards.show', $card))
             ->assertOk()
-            ->assertSee('Audit history')
+            ->assertSee('Historial de auditoría')
             ->assertSee('card.status_changed')
-            ->assertSee('Atlas Fleet Manager');
+            ->assertSee('Gerente de Flota Atlas');
 
         $this->actingAs($this->atlasManager())->get(route('cards.show', $card))
             ->assertOk()

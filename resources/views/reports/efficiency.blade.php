@@ -2,33 +2,33 @@
 
 @use('App\Support\Display')
 
-@section('title', 'Efficiency estimate')
+@section('title', 'Estimación de eficiencia')
 
 @section('content')
-    @include('reports._header', ['title' => 'Fuel efficiency (estimate)'])
+    @include('reports._header', ['title' => 'Eficiencia de combustible (estimación)'])
 
     <p class="small">
-        <strong>An estimate.</strong> Kilometers since the vehicle's previous fill, divided by the liters of this fill. It assumes every fill fills the tank (full to full).
-        Without a previous fill, an odometer reading on both fills, or a higher reading than last time, no figure is shown. Readings are the ones recorded at the pump, never the vehicle's current odometer.
+        <strong>Una estimación.</strong> Kilómetros desde la carga anterior del vehículo, divididos entre los litros de esta carga. Asume que cada carga llena el tanque (lleno a lleno).
+        Sin una carga anterior, una lectura de odómetro en ambas cargas, o una lectura mayor que la anterior, no se muestra ninguna cifra. Las lecturas son las registradas en la bomba, nunca el odómetro actual del vehículo.
     </p>
 
     @if ($rows === [])
-        <p class="text-body-secondary">No vehicle fills in this period.</p>
+        <p class="text-body-secondary">No hay cargas de vehículos en este periodo.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Vehicle</th>
+                        <th scope="col">Vehículo</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">Purchase</th>
-                        <th scope="col">Time (Beirut)</th>
-                        <th scope="col" class="text-end">Liters</th>
-                        <th scope="col" class="text-end">Odometer (km)</th>
-                        <th scope="col" class="text-end">Distance (km)</th>
-                        <th scope="col" class="text-end">km per liter</th>
+                        <th scope="col">Compra</th>
+                        <th scope="col">Hora (Beirut)</th>
+                        <th scope="col" class="text-end">Litros</th>
+                        <th scope="col" class="text-end">Odómetro (km)</th>
+                        <th scope="col" class="text-end">Distancia (km)</th>
+                        <th scope="col" class="text-end">km por litro</th>
                     </tr>
                 </thead>
                 <tbody>

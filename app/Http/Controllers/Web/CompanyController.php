@@ -48,7 +48,7 @@ class CompanyController extends Controller
     {
         $company = $reference->createCompany($request->validated(), $this->actor($request));
 
-        return redirect()->route('companies.index')->with('status', "Company {$company->name} added.");
+        return redirect()->route('companies.index')->with('status', "Empresa {$company->name} agregada.");
     }
 
     public function edit(Company $company): View
@@ -62,13 +62,13 @@ class CompanyController extends Controller
     {
         $reference->updateCompany($company, $request->validated(), $this->actor($request));
 
-        return redirect()->route('companies.index')->with('status', "Company {$company->name} saved.");
+        return redirect()->route('companies.index')->with('status', "Empresa {$company->name} guardada.");
     }
 
     public function updateStatus(CompanyStatusRequest $request, Company $company, ReferenceDataService $reference): RedirectResponse
     {
         $company = $reference->setCompanyStatus($company, CompanyStatus::from((string) $request->validated('status')), $this->actor($request));
 
-        return back()->with('status', "Company {$company->name} is now {$company->status->value}.");
+        return back()->with('status', "La empresa {$company->name} ahora está ".($company->status->value === 'active' ? 'activa.' : 'inactiva.'));
     }
 }

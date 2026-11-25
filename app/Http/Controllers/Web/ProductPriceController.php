@@ -45,7 +45,7 @@ class ProductPriceController extends Controller
 
         return redirect()->route('products.prices.index', $product)->with(
             'status',
-            "Published {$product->code} at ".Display::decimal($price->price_lbp, 4).' LBP per liter from '.Display::businessTime($price->effective_from).' (Beirut time).',
+            "Publicado {$product->code} a ".Display::decimal($price->price_lbp, 4).' LBP por litro desde '.Display::businessTime($price->effective_from).' (hora de Beirut).',
         );
     }
 }

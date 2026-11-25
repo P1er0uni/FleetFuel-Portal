@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Importación masiva y notificaciones, fase 2 (`docs/sdd/fase-2-importacion-notificaciones/`):
+  - Bulk CSV import of vehicles, drivers and cards. `App\Support\CsvImport\CsvTemplate`/`ImportResult` and `App\Services\BulkImportService`: exact header, per-row validation with the same rules as the forms, per-row transactions, `dry_run`, `fleet_name`/`vehicle_plate`/`driver_license` resolution, limits of 5000 rows / 5 MB, and one `audit_logs` row (`import.completed`) per import.
+    - Web: `/import` with three tabs, template download, dry-run checkbox and a result table with per-row errors; link "Importar" in the menu.
+    - API: `POST /import/{type}` (multipart `file` or JSON `rows`) and `GET /import/templates/{type}`, abilities `fleet:write`/`fleet:read`; `openapi.json` 0.12.0 with the `ImportResult` schema.
+  - Notifications:
+    - New `notification_rules` and `notifications` tables; enums `NotificationEventType`/`NotificationChannel`/`ThresholdOperator`; models, factory and `NotificationEntity` (stable hash for deduplication).
+    - Seven events (`quota_exceeded`, `quota_warning`, `card_blocked`, `anomaly_detected`, `delivery_completed`, `delivery_cancelled`, `fleet_rule_violated`) fire from the fuel, card and delivery services; `ProcessNotificationEvent` matches active rules by company/fleet/event, applies the threshold only to `quota_warning` (brick/math), deduplicates the same `(rule, event, entity)` within an hour, and delivers through `in_app` (company managers' inbox), `email` (`NotificationMail`) or `log` (audit + Laravel log).
+    - Web: layout bell with a 60-second unread-count poll and a five-item dropdown; `/notifications` (filters, mark read, mark all) and `/notifications/rules` (CRUD, toggle, event-dependent threshold form).
+    - API: `GET /notifications`, `GET /notifications/unread-count`, `PATCH /notifications/{id}/read`, `POST /notifications/mark-all-read` and the rules CRUD, with new abilities `notifications:read`/`notifications:write`; `openapi.json` 0.12.0.
+- Fleets, fase 1 (`docs/sdd/fase-1-flotas/`): a company's sub-grouping of vehicles, drivers and fuel cards with an aggregated monthly quota and basic fuel rules.
+  - New `fleets` and `fleet_rules` tables; `fleet_id` on vehicles, drivers and cards (SET NULL on delete). Spanish web screens under `/fleets` with rules, assignment, status and audit history; the fleet rules are enforced during POS ingestion (422).
+  - New fleet API in `openapi.json` 0.11.0: `GET`/`POST /fleets`, `GET`/`PUT`/`DELETE /fleets/{id}`, `GET /fleets/{id}/usage` and the member lists, with the documented tenant scope, abilities and shapes.
+  - The fleet filter on reports (fase 1, D8): `fleet_id` keeps only the purchases paid with that fleet's cards — on the web header of consumption, top stations, quota exceptions, anomalies and efficiency, and as a documented `fleet_id` parameter of `GET /reports/consumption`. A fleet outside the chosen company is a validation error, never a wider report.
+  - The dashboard gains a "Consumo por flota" widget: each fleet's liters of the Beirut month against its quota, with the percentage and a state badge; an exceeded quota is a signal only.
+  - Fixed on the way: `FleetService` rounded `monthly_quota_liters` to 2 decimal places although the validation and the column allow 3, and the ER diagram in `docs/03-DATA-MODEL.md` did not draw the five fleet relationships (`ErDiagramTest` was red).
 - Fixed: the rehearsal and the restore check piped into `grep -q` and `head` under `pipefail`. When `grep` stopped at its first match while the writer was still writing, the pipeline failed (SIGPIPE, status 141). The rehearsal then reported a false failure ("rates:sync is not scheduled", first seen in pull request #1's CI), and the restore check could have missed a pending migration. Output is now captured first, then searched.
 - Public repository: the owner made it public, with the history unchanged. `main` is protected: a pull request that passes "Setup and quality gates", no force pushes. The runbook, CLAUDE.md and the README describe the pull-request workflow.
 - Portfolio release preparation:

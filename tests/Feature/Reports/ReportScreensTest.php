@@ -2,6 +2,9 @@
 
 namespace Tests\Feature\Reports;
 
+use App\Models\Fleet;
+use App\Models\FuelCard;
+use App\Models\FuelTransaction;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\BuildsLedgerFixtures;
@@ -39,7 +42,7 @@ class ReportScreensTest extends TestCase
             $this->get('/reports')->assertRedirect('/reports/consumption');
 
             foreach (self::PAGES as $page) {
-                $this->get("/reports/{$page}")->assertOk()->assertSee('Reports');
+                $this->get("/reports/{$page}")->assertOk()->assertSee('Reportes');
             }
         }
 
@@ -60,11 +63,11 @@ class ReportScreensTest extends TestCase
         $cedar = '?company_id='.$this->cedar()->id;
 
         $this->get('/reports/consumption'.$cedar)->assertOk()
-            ->assertSee('Atlas Logistics')->assertDontSee('Cedar Catering')
+            ->assertSee('Logística Atlas')->assertDontSee('Catering Cedro')
             ->assertSeeInOrder(['Total', '9', '515.00', '41,675,000.00']);
         $this->get('/reports/consumption?group_by=vehicle'.str_replace('?', '&', $cedar))->assertOk()
-            ->assertSee('ATL-103')->assertDontSee('CED-203')->assertDontSee('No vehicle (card only)');
-        $this->get('/reports/top-stations'.$cedar)->assertOk()->assertSeeInOrder(['Harbor Demo Station', '290.00', 'North Demo Station', '225.00']);
+            ->assertSee('ATL-103')->assertDontSee('CED-203')->assertDontSee('Sin vehículo (solo tarjeta)');
+        $this->get('/reports/top-stations'.$cedar)->assertOk()->assertSeeInOrder(['Estación Demo Puerto', '290.00', 'Estación Demo Norte', '225.00']);
 
         // A blocked Cedar card is an exception for the admin, invisible here.
         $this->card('FF-CEDAR-FLEX')->forceFill(['status' => 'blocked'])->save();
@@ -80,17 +83,17 @@ class ReportScreensTest extends TestCase
     {
         $this->actingAs($this->admin());
 
-        $this->get('/reports/consumption')->assertOk()->assertSeeInOrder(['Atlas Logistics', 'Cedar Catering', 'Total', '840.00']);
+        $this->get('/reports/consumption')->assertOk()->assertSeeInOrder(['Logística Atlas', 'Catering Cedro', 'Total', '840.00']);
         $this->get('/reports/consumption?company_id='.$this->cedar()->id)->assertOk()
             ->assertSee('325.00')->assertDontSee('515.00');
-        $this->get('/reports/consumption?group_by=vehicle')->assertOk()->assertSee('No vehicle (card only)');
+        $this->get('/reports/consumption?group_by=vehicle')->assertOk()->assertSee('Sin vehículo (solo tarjeta)');
         $this->get('/reports/quota-exceptions')->assertOk()
             // Card numbers are masked to their last four characters.
             ->assertSee('••••CKED')
             ->assertDontSee('FF-ATLAS-BLOCKED')
-            ->assertSee('Over the liter limit: 250.00 L used of 200.00 L (the limit was lowered below this month&#039;s usage).', false);
-        $this->get('/reports/anomalies')->assertOk()->assertSeeInOrder(['More than the tank holds', 'ATL-102', '75.00', '60.00', '15.00', 'Rapid fills', 'ATL-102', '20']);
-        $this->get('/reports/delivery-sla')->assertOk()->assertSeeInOrder(['Beirut', '74.00', 'Mount Lebanon', '51.00', 'All governorates', '2', '62.50']);
+            ->assertSee('Sobre el límite de litros: 250.00 L usados de 200.00 L (el límite se bajó por debajo del consumo de este mes).', false);
+        $this->get('/reports/anomalies')->assertOk()->assertSeeInOrder(['Más de lo que cabe en el tanque', 'ATL-102', '75.00', '60.00', '15.00', 'Cargas rápidas', 'ATL-102', '20']);
+        $this->get('/reports/delivery-sla')->assertOk()->assertSeeInOrder(['Beirut', '74.00', 'Mount Lebanon', '51.00', 'Todas las gobernaciones', '2', '62.50']);
     }
 
     public function test_dates_are_validated_and_shown_back(): void
@@ -98,7 +101,7 @@ class ReportScreensTest extends TestCase
         $this->actingAs($this->admin());
 
         $this->get('/reports/consumption?from=2026-08-01&to=2026-09-01')->assertOk()
-            ->assertSee('2026-08-01 to 2026-08-31, Beirut time')
+            ->assertSee('2026-08-01 a 2026-08-31, hora de Beirut')
             ->assertSee('value="2026-09-01"', false);
         $this->from('/reports/consumption')->get('/reports/consumption?from=2026-09-10&to=2026-09-01')
             ->assertRedirect('/reports/consumption')->assertSessionHasErrors('to');
@@ -130,5 +133,32 @@ class ReportScreensTest extends TestCase
         $this->assertStringNotContainsString('Cedar', $browser->streamedContent());
 
         $this->get('/exports/transactions.csv?company_id='.$this->cedar()->id)->assertSessionHasErrors('company_id');
+    }
+
+    /** The fleet filter (fase 1): rendered, narrowing, and never another company's. */
+    public function test_the_fleet_filter_narrows_the_report_and_refuses_foreign_fleets(): void
+    {
+        $fleet = Fleet::factory()->create(['company_id' => $this->atlas()->id, 'name' => 'Camiones']);
+        $fleetCardIds = [$this->card('FF-ATLAS-001')->id, $this->card('FF-ATLAS-H02')->id];
+        FuelCard::query()->whereKey($fleetCardIds)->update(['fleet_id' => $fleet->id]);
+
+        $this->actingAs($this->atlasManager());
+        $response = $this->get('/reports/consumption?fleet_id='.$fleet->id)->assertOk();
+
+        // The select is rendered with the fleet chosen, and the subtitle names it.
+        $response->assertSee('Flota')->assertSee('Todas las flotas')->assertSee('Flota Camiones');
+
+        // Only the fleet's purchases are summed, whatever the seed holds.
+        $expected = FuelTransaction::query()
+            ->whereIn('fuel_card_id', $fleetCardIds)
+            ->where('transacted_at', '>=', CarbonImmutable::parse('2026-08-31T21:00:00Z'))
+            ->where('transacted_at', '<', CarbonImmutable::parse('2026-09-30T21:00:00Z'))
+            ->count();
+        $response->assertSeeInOrder(['Total', (string) $expected]);
+
+        // A Cedar fleet is a validation error for the Atlas manager, never a wider report.
+        $cedarFleet = Fleet::factory()->create(['company_id' => $this->cedar()->id]);
+        $this->from('/reports/consumption')->get('/reports/consumption?fleet_id='.$cedarFleet->id)
+            ->assertRedirect('/reports/consumption')->assertSessionHasErrors('fleet_id');
     }
 }

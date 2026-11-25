@@ -11,10 +11,10 @@ use Throwable;
 class SeedDemoData extends Command
 {
     protected $signature = 'demo:seed
-        {--as-of= : Clock for the demo data, an ISO-8601 instant with offset such as 2026-09-28T09:00:00Z (default: now)}
-        {--force : Also allow a production deployment that serves as a public demo (still needs DEMO_MODE=true and an empty database)}';
+        {--as-of= : Reloj para los datos demo, un instante ISO-8601 con desplazamiento como 2026-09-28T09:00:00Z (por defecto: ahora)}
+        {--force : Permite también un despliegue de producción que sirva como demo pública (aún requiere DEMO_MODE=true y una base de datos vacía)}';
 
-    protected $description = 'Seed fictional demo data into an empty database (local, or a production demo deployment with --force)';
+    protected $description = 'Siembra datos demo ficticios en una base de datos vacía (local, o un despliegue demo de producción con --force)';
 
     public function handle(): int
     {
@@ -42,7 +42,7 @@ class SeedDemoData extends Command
 
     private function invalidAsOf(string $value): ?string
     {
-        $message = '--as-of must be an ISO-8601 instant with an offset, e.g. 2026-09-28T09:00:00Z';
+        $message = '--as-of debe ser un instante ISO-8601 con desplazamiento, p. ej. 2026-09-28T09:00:00Z';
 
         if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/', $value) !== 1) {
             return $message;
@@ -60,7 +60,7 @@ class SeedDemoData extends Command
         }
 
         if ($parsed->isAfter(CarbonImmutable::now()->addMinute())) {
-            return '--as-of cannot be in the future.';
+            return '--as-of no puede estar en el futuro.';
         }
 
         return null;

@@ -22,7 +22,7 @@ class CreateUser extends Command
         {--company= : Company ID (company managers only)}
         {--station= : Station ID (station operators only)}';
 
-    protected $description = 'Create a user account (the password is typed at a hidden prompt and never shown)';
+    protected $description = 'Crear una cuenta de usuario (la contraseña se escribe en un prompt oculto y nunca se muestra)';
 
     public function handle(UserAccountService $accounts): int
     {
@@ -58,13 +58,13 @@ class CreateUser extends Command
 
         // A password passed as an option would end up in shell history.
         if (! $this->input->isInteractive()) {
-            return $this->refuse('Run this command interactively; the password is asked for at a hidden prompt.');
+            return $this->refuse('Ejecuta este comando de forma interactiva; la contraseña se pide en un prompt oculto.');
         }
 
-        $password = (string) $this->secret('Password (at least 12 characters)');
+        $password = (string) $this->secret('Contraseña (mínimo 12 caracteres)');
 
-        if ($password !== (string) $this->secret('Repeat the password')) {
-            return $this->refuse('The passwords do not match.');
+        if ($password !== (string) $this->secret('Repite la contraseña')) {
+            return $this->refuse('Las contraseñas no coinciden.');
         }
 
         $passwordCheck = Validator::make(['password' => $password], ['password' => ['required', Password::min(12)]]);
@@ -75,7 +75,7 @@ class CreateUser extends Command
 
         $user = $accounts->create((string) $input['name'], $input['email'], $password, $role, $company, $station);
 
-        $this->info("Created {$role->label()} {$user->email} (user ID {$user->id}).");
+        $this->info("Se creó {$role->label()} {$user->email} (ID de usuario {$user->id}).");
 
         return self::SUCCESS;
     }

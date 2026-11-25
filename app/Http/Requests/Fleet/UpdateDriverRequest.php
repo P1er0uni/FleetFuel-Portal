@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Fleet;
 
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\Driver;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateDriverRequest extends FormRequest
 {
+    use ResolvesFleet;
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -36,6 +39,7 @@ class UpdateDriverRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+() -]+$/'],
             'license_no' => ['required', 'string', 'max:50',
                 Rule::unique('drivers', 'license_no')->where('company_id', $driver->company_id)->ignore($driver->id)],
+            'fleet_id' => $this->fleetRules($driver->company_id),
         ];
     }
 
@@ -44,10 +48,10 @@ class UpdateDriverRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'company_id.prohibited' => 'A driver cannot move to another company.',
-            'phone.regex' => 'Use digits, spaces, +, - and brackets only.',
-            'license_no.unique' => 'This company already has a driver with this license number.',
+        return $this->fleetMessages() + [
+            'company_id.prohibited' => 'Un conductor no puede cambiar a otra empresa.',
+            'phone.regex' => 'Usa solo dígitos, espacios, +, - y paréntesis.',
+            'license_no.unique' => 'Esta empresa ya tiene un conductor con este número de licencia.',
         ];
     }
 

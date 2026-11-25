@@ -255,7 +255,7 @@ class DemoSeederTest extends TestCase
         $before = $this->rowCounts();
 
         $this->artisan('demo:seed', ['--as-of' => self::FIXTURE_NOW])
-            ->expectsOutputToContain('nothing changed')
+            ->expectsOutputToContain('no cambió nada')
             ->assertSuccessful();
         // The `make setup` path: DatabaseSeeder on a non-empty database.
         $this->seed(DatabaseSeeder::class);
@@ -294,7 +294,7 @@ class DemoSeederTest extends TestCase
         config(['fleetfuel.demo.enabled' => true, 'fleetfuel.demo.password' => self::DEMO_PASSWORD]);
 
         $this->artisan('demo:seed')
-            ->expectsOutputToContain('only be seeded in the local or testing environment')
+            ->expectsOutputToContain('solo pueden sembrarse en el entorno local o de testing')
             ->assertFailed();
 
         // The ordinary seeder never seeds production demo data either; it stops with the guidance.
@@ -308,7 +308,7 @@ class DemoSeederTest extends TestCase
         // --force is for a production demo deployment only, not any other environment.
         $this->app->detectEnvironment(fn (): string => 'staging');
         $this->artisan('demo:seed', ['--force' => true])
-            ->expectsOutputToContain('only be seeded in the local or testing environment')
+            ->expectsOutputToContain('solo pueden sembrarse en el entorno local o de testing')
             ->assertFailed();
 
         $this->assertSame(0, User::query()->count());
@@ -320,7 +320,7 @@ class DemoSeederTest extends TestCase
         $this->app->detectEnvironment(fn (): string => 'production');
 
         config(['fleetfuel.demo.enabled' => false, 'fleetfuel.demo.password' => self::DEMO_PASSWORD]);
-        $this->artisan('demo:seed', ['--force' => true])->expectsOutputToContain('DEMO_MODE is off')->assertFailed();
+        $this->artisan('demo:seed', ['--force' => true])->expectsOutputToContain('DEMO_MODE está desactivado')->assertFailed();
         $this->assertSame(0, User::query()->count());
 
         config(['fleetfuel.demo.enabled' => true]);
@@ -328,17 +328,17 @@ class DemoSeederTest extends TestCase
         $this->assertSame(5, User::query()->count());
 
         // Still only into an empty database: a second run changes nothing.
-        $this->artisan('demo:seed', ['--force' => true])->expectsOutputToContain('already has users')->assertSuccessful();
+        $this->artisan('demo:seed', ['--force' => true])->expectsOutputToContain('ya tiene usuarios')->assertSuccessful();
         $this->assertDatabaseCount('users', 5);
     }
 
     public function test_it_refuses_without_demo_mode_or_a_demo_password(): void
     {
         config(['fleetfuel.demo.enabled' => true, 'fleetfuel.demo.password' => '']);
-        $this->artisan('demo:seed')->expectsOutputToContain('Set DEMO_PASSWORD')->assertFailed();
+        $this->artisan('demo:seed')->expectsOutputToContain('Configura DEMO_PASSWORD')->assertFailed();
 
         config(['fleetfuel.demo.enabled' => false, 'fleetfuel.demo.password' => self::DEMO_PASSWORD]);
-        $this->artisan('demo:seed')->expectsOutputToContain('DEMO_MODE is off')->assertFailed();
+        $this->artisan('demo:seed')->expectsOutputToContain('DEMO_MODE está desactivado')->assertFailed();
 
         $this->assertSame(0, User::query()->count());
     }

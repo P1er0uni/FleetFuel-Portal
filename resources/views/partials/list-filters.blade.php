@@ -6,9 +6,9 @@
     </div>
     @if (! empty($statusOptions))
         <div class="col-sm-3 col-lg-2">
-            <label for="filter-status" class="form-label small mb-1">Status</label>
+            <label for="filter-status" class="form-label small mb-1">Estado</label>
             <select id="filter-status" name="status" class="form-select form-select-sm">
-                <option value="">All</option>
+                <option value="">Todos</option>
                 @foreach ($statusOptions as $value => $text)
                     <option value="{{ $value }}" @selected(request()->string('status')->toString() === $value)>{{ $text }}</option>
                 @endforeach
@@ -17,9 +17,9 @@
     @endif
     @if ($companies !== null)
         <div class="col-sm-4 col-lg-3">
-            <label for="filter-company" class="form-label small mb-1">Company</label>
+            <label for="filter-company" class="form-label small mb-1">Empresa</label>
             <select id="filter-company" name="company" class="form-select form-select-sm">
-                <option value="">All companies</option>
+                <option value="">Todas las empresas</option>
                 @foreach ($companies as $id => $companyName)
                     <option value="{{ $id }}" @selected(request()->string('company')->toString() === (string) $id)>{{ $companyName }}</option>
                 @endforeach
@@ -27,7 +27,7 @@
         </div>
     @endif
     <div class="col-auto">
-        <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-        <a class="btn btn-sm btn-link" href="{{ url()->current() }}">Reset</a>
+        <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+        <a class="btn btn-sm btn-link" href="{{ url()->current() }}">Limpiar</a>
     </div>
 </form>

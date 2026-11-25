@@ -9,13 +9,13 @@ use App\Http\Requests\Api\V1\StoreDriverRequest;
 use App\Http\Resources\DriverResource;
 use App\Models\Driver;
 use App\Models\User;
-use App\Services\FleetService;
+use App\Services\VehicleAndDriverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
  * Drivers for admins (every company) and company managers (their own).
- * Creation goes through FleetService, like the web form.
+ * Creation goes through VehicleAndDriverService, like the web form.
  */
 class DriverController extends Controller
 {
@@ -33,7 +33,7 @@ class DriverController extends Controller
         return $this->pageResponse($page, DriverResource::class, $request);
     }
 
-    public function store(StoreDriverRequest $request, FleetService $fleet): JsonResponse
+    public function store(StoreDriverRequest $request, VehicleAndDriverService $fleet): JsonResponse
     {
         $driver = $fleet->createDriver($request->company(), $request->validated(), $this->user($request));
 

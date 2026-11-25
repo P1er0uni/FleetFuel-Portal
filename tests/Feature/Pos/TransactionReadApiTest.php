@@ -74,7 +74,7 @@ class TransactionReadApiTest extends TestCase
 
     public function test_an_operator_lists_only_their_stations_purchases(): void
     {
-        $station = $this->station('Harbor Demo Station');
+        $station = $this->station('Estación Demo Puerto');
         $expected = $this->ledger(fn (Builder $q) => $q->where('station_id', $station->id));
 
         $response = $this->apiGet('/api/v1/transactions?per_page=100', 'operator.beirut@fleetfuel.test')->assertOk();
@@ -103,7 +103,7 @@ class TransactionReadApiTest extends TestCase
         $this->apiGet('/api/v1/transactions?card=ff-atlas-h01', 'admin@fleetfuel.test')->assertOk()
             ->assertJsonPath('meta.total', $this->ledger(fn (Builder $q) => $q->where('fuel_card_id', $card->id))['count']);
 
-        $station = $this->station('North Demo Station');
+        $station = $this->station('Estación Demo Norte');
         $this->apiGet("/api/v1/transactions?station_id={$station->id}&product_code=DIESEL", 'admin@fleetfuel.test')->assertOk()
             ->assertJsonPath('meta.totals', $this->ledger(fn (Builder $q) => $q->where('station_id', $station->id)
                 ->whereHas('product', fn (Builder $p) => $p->where('code', 'DIESEL')))['totals']);
@@ -160,7 +160,7 @@ class TransactionReadApiTest extends TestCase
             ->assertNotFound()->assertJsonPath('error.code', 'not_found');
         $this->apiGet('/api/v1/transactions/999999', 'manager.atlas@fleetfuel.test')->assertNotFound();
 
-        $otherStation = FuelTransaction::query()->where('station_id', '!=', $this->station('Harbor Demo Station')->id)->firstOrFail();
+        $otherStation = FuelTransaction::query()->where('station_id', '!=', $this->station('Estación Demo Puerto')->id)->firstOrFail();
         $this->apiGet("/api/v1/transactions/{$otherStation->id}", 'operator.beirut@fleetfuel.test')->assertNotFound();
     }
 
@@ -219,7 +219,7 @@ class TransactionReadApiTest extends TestCase
     public function test_reconciliation_passes_on_a_consistent_ledger_and_reports_a_tampered_counter(): void
     {
         $this->artisan('usage:reconcile')
-            ->expectsOutputToContain('All monthly usage counters match the ledger.')
+            ->expectsOutputToContain('Todos los contadores de uso mensual coinciden con el libro.')
             ->assertSuccessful();
 
         $card = $this->card('FF-ATLAS-H01');
@@ -227,7 +227,7 @@ class TransactionReadApiTest extends TestCase
         $counter()->update(['used_l' => '1.00']);
 
         $this->artisan('usage:reconcile')
-            ->expectsOutputToContain('1 counter(s) differ from the ledger')
+            ->expectsOutputToContain('1 contador(es) difieren del libro')
             ->doesntExpectOutputToContain('FF-ATLAS-H01')
             ->assertFailed();
 

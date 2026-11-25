@@ -3,13 +3,13 @@
 @use('App\Support\Display')
 @if ($rate)
     <p class="small text-body-secondary mb-1">
-        Indicative USD uses the {{ strtolower($rate->source->label()) }} rate of
-        {{ Display::decimal($rate->rate, 8) }} LBP per USD, effective {{ Display::businessTime($rate->effective_at) }} (Beirut time).
-        Purchases store their own LBP and USD amounts when they happen.
+        El USD indicativo usa la tasa {{ strtolower($rate->source->label()) }} de
+        {{ Display::decimal($rate->rate, 8) }} LBP por USD, con vigencia desde {{ Display::businessTime($rate->effective_at) }} (hora de Beirut).
+        Las compras guardan sus propios montos en LBP y USD al momento de realizarse.
     </p>
     @if ($rate->source === RateSource::Provider)
         @include('partials.rate-attribution')
     @endif
 @else
-    <p class="small text-warning-emphasis mb-1">No valid USD/LBP rate right now, so indicative USD prices are not shown.</p>
+    <p class="small text-warning-emphasis mb-1">Ahora mismo no hay una tasa USD/LBP válida, así que no se muestran los precios indicativos en USD.</p>
 @endif

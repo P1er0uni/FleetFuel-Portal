@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Fleet;
+use App\Models\FuelCard;
 use App\Models\FuelTransaction;
 use App\Services\TransactionCsvExport;
 use Brick\Math\BigDecimal;
@@ -53,12 +55,12 @@ class ReportApiTest extends TestCase
         }
 
         $this->consumption('', $token)->assertExactJson(['data' => [
-            ['group_id' => $this->atlas()->id, 'label' => 'Atlas Logistics', 'liters' => '515.00', 'amount_lbp' => '41675000.00', 'amount_usd' => $this->usd($this->atlas()->id)],
-            ['group_id' => $this->cedar()->id, 'label' => 'Cedar Catering', 'liters' => '325.00', 'amount_lbp' => '26775000.00', 'amount_usd' => $this->usd($this->cedar()->id)],
+            ['group_id' => $this->atlas()->id, 'label' => 'Logística Atlas', 'liters' => '515.00', 'amount_lbp' => '41675000.00', 'amount_usd' => $this->usd($this->atlas()->id)],
+            ['group_id' => $this->cedar()->id, 'label' => 'Catering Cedro', 'liters' => '325.00', 'amount_lbp' => '26775000.00', 'amount_usd' => $this->usd($this->cedar()->id)],
         ]]);
         $this->assertSame([null], array_column(array_filter(
             $this->consumption('?group_by=vehicle', $token)->json('data'),
-            fn (array $row): bool => $row['label'] === 'No vehicle (card only)',
+            fn (array $row): bool => $row['label'] === 'Sin vehículo (solo tarjeta)',
         ), 'group_id'));
     }
 
@@ -67,9 +69,19 @@ class ReportApiTest extends TestCase
         $manager = $this->apiToken($this->atlasManager());
         $admin = $this->apiToken($this->admin());
 
-        $this->assertSame(['Atlas Logistics'], array_column($this->consumption('', $manager)->assertOk()->json('data'), 'label'));
-        $this->assertSame(['Cedar Catering'], array_column($this->consumption('?company_id='.$this->cedar()->id, $admin)->assertOk()->json('data'), 'label'));
+        $this->assertSame(['Logística Atlas'], array_column($this->consumption('', $manager)->assertOk()->json('data'), 'label'));
+        $this->assertSame(['Catering Cedro'], array_column($this->consumption('?company_id='.$this->cedar()->id, $admin)->assertOk()->json('data'), 'label'));
         $this->assertSame([], $this->consumption('?from=2026-07-01&to=2026-08-01', $admin)->assertOk()->json('data'));
+
+        // The fleet filter keeps only the fleet's cards, and a foreign fleet is 422.
+        $fleet = Fleet::factory()->create(['company_id' => $this->atlas()->id, 'name' => 'Camiones']);
+        $fleetCardIds = [$this->card('FF-ATLAS-001')->id, $this->card('FF-ATLAS-H02')->id];
+        FuelCard::query()->whereKey($fleetCardIds)->update(['fleet_id' => $fleet->id]);
+        $rows = $this->consumption('?fleet_id='.$fleet->id, $manager)->assertOk()->json('data');
+        $this->assertSame(['Logística Atlas'], array_column($rows, 'label'));
+        $this->assertSame($this->fleetLiters($fleetCardIds), $rows[0]['liters']);
+        $cedarFleet = Fleet::factory()->create(['company_id' => $this->cedar()->id]);
+        $this->consumption('?fleet_id='.$cedarFleet->id, $manager)->assertUnprocessable()->assertJsonStructure(['error' => ['details' => ['fleet_id']]]);
 
         foreach ([
             'company_id' => ['?company_id='.$this->atlas()->id, $manager],
@@ -106,7 +118,7 @@ class ReportApiTest extends TestCase
             'amount_lbp' => $this->sum($rows, 'amount_lbp'),
             'amount_usd' => $this->sum($rows, 'amount_usd'),
         ]);
-        $this->assertSame(['Atlas Logistics'], array_values(array_unique(array_column($rows, 'company'))), 'only the manager\'s company');
+        $this->assertSame(['Logística Atlas'], array_values(array_unique(array_column($rows, 'company'))), 'only the manager\'s company');
 
         // Oldest first, ties by ID; instants in UTC with Z.
         $order = array_map(fn (array $row): array => [$row['transacted_at_utc'], (int) $row['transaction_id']], $rows);
@@ -124,12 +136,12 @@ class ReportApiTest extends TestCase
     public function test_csv_filters_match_the_ledger_list_and_chunking_changes_nothing(): void
     {
         $admin = $this->apiToken($this->admin());
-        $filters = '?from=2026-08-01&to=2026-10-01&product_code=DIESEL&station_id='.$this->station('North Demo Station')->id.'&company_id='.$this->atlas()->id;
+        $filters = '?from=2026-08-01&to=2026-10-01&product_code=DIESEL&station_id='.$this->station('Estación Demo Norte')->id.'&company_id='.$this->atlas()->id;
 
         [, $rows] = $this->parse($this->export($filters, $admin)->assertOk());
         $list = $this->api('GET', '/api/v1/transactions'.$filters.'&per_page=100', $admin)->assertOk();
         $this->assertSame(array_map(fn (array $row): int => $row['id'], $list->json('data')), array_reverse(array_map(fn (array $row): int => (int) $row['transaction_id'], $rows)));
-        $this->assertSame(['North Demo Station'], array_values(array_unique(array_column($rows, 'station'))));
+        $this->assertSame(['Estación Demo Norte'], array_values(array_unique(array_column($rows, 'station'))));
 
         [, $byCard] = $this->parse($this->export('?card=ff-atlas-h01', $admin)->assertOk());
         $this->assertSame($this->api('GET', '/api/v1/transactions?card=FF-ATLAS-H01', $admin)->json('meta.total'), count($byCard));
@@ -144,7 +156,7 @@ class ReportApiTest extends TestCase
     public function test_csv_cells_are_quoted_and_formulas_neutralized(): void
     {
         $this->cedar()->forceFill(['name' => '=HYPERLINK("http://evil.test","Cedar")'])->save();
-        $this->station('North Demo Station')->forceFill(['name' => '  @SUM(1+1)'])->save();
+        $this->station('Estación Demo Norte')->forceFill(['name' => '  @SUM(1+1)'])->save();
         $this->atlas()->forceFill(['name' => 'Atlas "Logistics", Beirut'])->save();
 
         $response = $this->export('', $this->apiToken($this->admin()))->assertOk();
@@ -168,7 +180,7 @@ class ReportApiTest extends TestCase
         $this->export('', null)->assertUnauthorized();
 
         [, $cedar] = $this->parse($this->export('', $this->apiToken($this->cedarManager()))->assertOk());
-        $this->assertSame(['Cedar Catering'], array_values(array_unique(array_column($cedar, 'company'))));
+        $this->assertSame(['Catering Cedro'], array_values(array_unique(array_column($cedar, 'company'))));
     }
 
     /**
@@ -223,5 +235,19 @@ class ReportApiTest extends TestCase
             ->where('company_id', $companyId)
             ->where('transacted_at', '>=', CarbonImmutable::parse('2026-08-31T21:00:00Z'))
             ->get(['amount_usd'])->toArray(), 'amount_usd');
+    }
+
+    /**
+     * The fleet's own liters in the default Beirut month, summed in PHP from the stored rows.
+     *
+     * @param  list<int>  $fleetCardIds
+     */
+    private function fleetLiters(array $fleetCardIds): string
+    {
+        return $this->sum(FuelTransaction::query()
+            ->whereIn('fuel_card_id', $fleetCardIds)
+            ->where('transacted_at', '>=', CarbonImmutable::parse('2026-08-31T21:00:00Z'))
+            ->where('transacted_at', '<', CarbonImmutable::parse('2026-09-30T21:00:00Z'))
+            ->get(['liters'])->toArray(), 'liters');
     }
 }

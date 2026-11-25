@@ -5,6 +5,11 @@ namespace App\Services;
 use App\Enums\CardStatus;
 use App\Enums\CompanyStatus;
 use App\Enums\RateMode;
+use App\Events\AnomalyDetected;
+use App\Events\FleetRuleViolated;
+use App\Events\QuotaExceeded;
+use App\Events\QuotaWarning;
+use App\Exceptions\FleetRuleViolation;
 use App\Exceptions\IdempotencyConflict;
 use App\Exceptions\PriceUnavailable;
 use App\Exceptions\PurchaseDeclined;
@@ -16,6 +21,7 @@ use App\Models\FuelTransaction;
 use App\Models\Product;
 use App\Models\Station;
 use App\Models\User;
+use App\Repositories\ReportRepository;
 use App\Support\BusinessMonth;
 use App\Support\Decimal;
 use App\Support\FuelAmounts;
@@ -23,6 +29,7 @@ use App\Support\IngestResult;
 use App\Support\PosPurchase;
 use App\Support\PriceQuote;
 use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\DetectsConcurrencyErrors;
 use Illuminate\Database\QueryException;
@@ -52,7 +59,10 @@ class FuelTransactionService
     /** Whole-transaction attempts for deadlocks, lock timeouts and unresolved same-reference races. */
     private const MAX_ATTEMPTS = 3;
 
-    public function __construct(private readonly PriceResolver $prices) {}
+    public function __construct(
+        private readonly PriceResolver $prices,
+        private readonly FleetRuleService $fleetRules,
+    ) {}
 
     /**
      * POS ingestion, steps 3–9. The caller already authenticated an active
@@ -82,6 +92,20 @@ class FuelTransactionService
         for ($attempt = 1; ; $attempt++) {
             try {
                 return DB::transaction(fn (): IngestResult => $this->ingestUnderCardLock($operator, $purchase, $hash));
+            } catch (FleetRuleViolation $e) {
+                // The purchase transaction has rolled back; the event writes
+                // its own notification rows now, outside that rollback.
+                event(new FleetRuleViolated(
+                    $e->cardId ?? 0, $e->companyId ?? 0, $e->fleetId, $e->ruleName ?? 'fleet',
+                ));
+
+                throw $e;
+            } catch (PurchaseDeclined $e) {
+                if ($e->errorCode === 'quota_exceeded') {
+                    $this->emitQuotaExceeded($purchase, $e);
+                }
+
+                throw $e;
             } catch (UniqueConstraintViolationException) {
                 // Step 9: a concurrent request with the same station and
                 // reference inserted first (possibly for another card). Our
@@ -181,6 +205,11 @@ class FuelTransactionService
         $card->loadMissing(['company', 'vehicle', 'driver']);
         $this->ensureCardAccepts($card, $product);
 
+        // The card's fleet may restrict products, stations and per-day or
+        // per-transaction volumes (docs/sdd/fase-1-flotas/spec.md). A card
+        // without a fleet skips this. Still under the card lock.
+        $this->fleetRules->ensureAccepts($card, $station, $product, $purchase);
+
         // Step 6: the price and rate in effect at the event time, from
         // stored rows only (no HTTP inside the transaction).
         $quote = $this->prices->quote($product, $purchase->liters, $purchase->transactedAt, $mode);
@@ -230,7 +259,65 @@ class FuelTransactionService
         $usage->used_usd = $usedUsd;
         $usage->save();
 
+        $this->dispatchPostPurchase($card, $purchase, $transaction, $usedL);
+
         return $transaction;
+    }
+
+    /**
+     * Notifications for an accepted purchase (D13): a quota warning when the
+     * card has a liter quota, and an anomaly when it comes less than 30
+     * minutes after the same vehicle's previous fill (D9). Dispatched inside
+     * the purchase transaction, so the notification rows commit with it.
+     */
+    private function dispatchPostPurchase(FuelCard $card, PosPurchase $purchase, FuelTransaction $transaction, string $usedL): void
+    {
+        if ($card->monthly_limit_l !== null && ! BigDecimal::of($card->monthly_limit_l)->isZero()) {
+            $percent = (string) BigDecimal::of($usedL)
+                ->multipliedBy(100)
+                ->dividedBy($card->monthly_limit_l, 4, RoundingMode::HalfUp);
+
+            event(new QuotaWarning(
+                (int) $card->id, (int) $card->company_id, $card->fleet_id, $percent, $usedL, (string) $card->monthly_limit_l,
+            ));
+        }
+
+        if ($card->vehicle_id === null) {
+            return;
+        }
+
+        $previous = FuelTransaction::query()
+            ->where('vehicle_id', $card->vehicle_id)
+            ->whereKeyNot($transaction->id)
+            ->where('transacted_at', '<', $purchase->transactedAt)
+            ->where('transacted_at', '>=', $purchase->transactedAt->subSeconds(ReportRepository::RAPID_FILL_SECONDS))
+            ->orderByDesc('transacted_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($previous !== null) {
+            $minutes = (int) ceil($purchase->transactedAt->diffInSeconds($previous->transacted_at) / 60);
+
+            event(new AnomalyDetected(
+                (int) $card->vehicle_id, (int) $card->id, (int) $card->company_id, $card->fleet_id, $minutes,
+            ));
+        }
+    }
+
+    /** The quota_exceeded event for a declined purchase, emitted after rollback. */
+    private function emitQuotaExceeded(PosPurchase $purchase, PurchaseDeclined $decline): void
+    {
+        $card = FuelCard::query()->where('card_no', $purchase->cardNo)->first();
+
+        if ($card !== null) {
+            event(new QuotaExceeded(
+                (int) $card->id,
+                (int) $card->company_id,
+                $card->fleet_id,
+                null,
+                (string) ($decline->details['dimension'] ?? 'liters'),
+            ));
+        }
     }
 
     private function findByReference(int $stationId, string $externalRef): ?FuelTransaction

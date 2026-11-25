@@ -15,9 +15,9 @@ enum RateSource: string
     public function label(): string
     {
         return match ($this) {
-            self::Provider => 'Provider',
-            self::Manual => 'Manual override',
-            self::Fixture => 'Fixture (synthetic)',
+            self::Provider => 'Proveedor',
+            self::Manual => 'Ajuste manual',
+            self::Fixture => 'Fixture (sintética)',
         };
     }
 }

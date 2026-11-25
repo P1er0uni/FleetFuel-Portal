@@ -36,7 +36,7 @@ class SimulatorCardsCommandTest extends TestCase
 
         $this->artisan('demo:simulator-cards', ['--tag' => 'run2'])
             ->expectsOutputToContain('export POS_CARD=FF-SIM-RUN2-MAIN POS_BLOCKED_CARD=FF-SIM-RUN2-BLOCKED POS_TINY_CARD=FF-SIM-RUN2-TINY')
-            ->expectsOutputToContain('Nothing else was changed.')
+            ->expectsOutputToContain('No se cambió nada más.')
             ->assertSuccessful();
 
         $this->assertSame($cardsBefore + 3, FuelCard::query()->count());
@@ -65,7 +65,7 @@ class SimulatorCardsCommandTest extends TestCase
         $count = FuelCard::query()->count();
 
         $this->artisan('demo:simulator-cards', ['--tag' => 'once'])
-            ->expectsOutputToContain('Cards with the tag ONCE already exist')
+            ->expectsOutputToContain('Ya existen tarjetas con la etiqueta ONCE')
             ->assertFailed();
         $this->artisan('demo:simulator-cards', ['--tag' => 'TOO-LONG-TAG'])->assertFailed();
 

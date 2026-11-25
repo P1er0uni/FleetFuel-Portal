@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Concerns;
 
 use App\Models\Company;
+use App\Models\Fleet;
 use App\Models\User;
 use App\Support\Like;
 use Illuminate\Database\Eloquent\Builder;
@@ -95,5 +96,29 @@ trait FiltersLists
             ->when($activeOnly, fn (Builder $query) => $query->where('status', 'active'))
             ->orderBy('name')
             ->pluck('name', 'id');
+    }
+
+    /**
+     * Active fleets for a form's "Flota (opcional)" select. With a company,
+     * that company's fleets only; without one (an admin's create form, before
+     * the company is chosen), every active fleet labeled with its company.
+     *
+     * @return Collection<int, string>
+     */
+    protected function fleetOptions(?int $companyId): Collection
+    {
+        $options = [];
+
+        Fleet::query()
+            ->where('status', 'active')
+            ->when($companyId !== null, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->with('company')
+            ->orderBy('name')
+            ->get()
+            ->each(function (Fleet $fleet) use (&$options, $companyId): void {
+                $options[(int) $fleet->id] = $companyId !== null ? $fleet->name : $fleet->name.' — '.$fleet->company->name;
+            });
+
+        return new Collection($options);
     }
 }

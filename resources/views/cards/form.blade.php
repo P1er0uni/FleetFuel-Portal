@@ -4,45 +4,45 @@
 @use('App\Enums\CompanyStatus')
 @use('App\Support\Display')
 
-@section('title', $card ? 'Change card assignment' : 'Issue card')
+@section('title', $card ? 'Cambiar asignación de tarjeta' : 'Emitir tarjeta')
 
 @section('content')
     @php
         $used ??= false;
         $locked = $card !== null && ($used || $card->status === CardStatus::Archived);
         $vehicleOptions = $vehicles->mapWithKeys(fn ($vehicle) => [
-            $vehicle->id => $vehicle->plate_no.' · '.ucfirst($vehicle->fuel_type->value).' · '.Display::decimal($vehicle->tank_capacity_l).' L'.($vehicle->is_active ? '' : ' (inactive)'),
+            $vehicle->id => $vehicle->plate_no.' · '.($vehicle->fuel_type->value === 'diesel' ? 'Diésel' : 'Gasolina').' · '.Display::decimal($vehicle->tank_capacity_l).' L'.($vehicle->is_active ? '' : ' (inactivo)'),
         ]);
         $driverOptions = $drivers->mapWithKeys(fn ($driver) => [
-            $driver->id => $driver->name.' · '.$driver->license_no.($driver->is_active ? '' : ' (inactive)'),
+            $driver->id => $driver->name.' · '.$driver->license_no.($driver->is_active ? '' : ' (inactivo)'),
         ]);
         $productOptions = $products->mapWithKeys(fn ($product) => [
-            $product->id => $product->name.' ('.$product->code.')'.($product->is_active ? '' : ' (inactive)'),
+            $product->id => $product->name.' ('.$product->code.')'.($product->is_active ? '' : ' (inactivo)'),
         ]);
     @endphp
 
     <h1 class="h3 mb-3">
         @if ($card)
-            Change assignment of card <span class="font-monospace">{{ $card->card_no }}</span>
+            Cambiar asignación de la tarjeta <span class="font-monospace">{{ $card->card_no }}</span>
         @else
-            Issue a fuel card
+            Emitir una tarjeta de combustible
         @endif
     </h1>
 
     <p>
-        Company: <strong>{{ $company->name }}</strong>
+        Empresa: <strong>{{ $company->name }}</strong>
         @if (! $card && auth()->user()->isAdmin())
-            · <a href="{{ route('cards.create') }}">choose another company</a>
+            · <a href="{{ route('cards.create') }}">elegir otra empresa</a>
         @endif
     </p>
 
     @if ($company->status !== CompanyStatus::Active)
-        <div class="alert alert-warning" role="alert">This company is inactive, so its fleet is read-only.</div>
+        <div class="alert alert-warning" role="alert">Esta empresa está inactiva, así que su flota es de solo lectura.</div>
     @endif
     @if ($card && $used)
         <div class="alert alert-info" role="status">
-            This card has already been used, so its vehicle, driver and product restriction are locked.
-            Limits and blocking are still available on the <a href="{{ route('cards.show', $card) }}">card page</a>.
+            Esta tarjeta ya se usó, así que su vehículo, conductor y restricción de producto quedan bloqueados.
+            Los límites y el bloqueo siguen disponibles en la <a href="{{ route('cards.show', $card) }}">página de la tarjeta</a>.
         </div>
     @endif
 
@@ -57,37 +57,40 @@
                 @endif
 
                 <fieldset @disabled($locked)>
-                    <x-form.select name="vehicle_id" label="Vehicle" :options="$vehicleOptions" :selected="$card?->vehicle_id"
-                                   placeholder="No vehicle" help="Optional. The vehicle's fuel type limits which products the card can buy." />
+                    <x-form.select name="vehicle_id" label="Vehículo" :options="$vehicleOptions" :selected="$card?->vehicle_id"
+                                   placeholder="Sin vehículo" help="Opcional. El tipo de combustible del vehículo limita qué productos puede comprar la tarjeta." />
                     @if ($vehicles->isEmpty())
-                        <p class="form-text mt-n2">This company has no active vehicles yet. <a href="{{ route('vehicles.create') }}">Add a vehicle</a>, or issue the card without one.</p>
+                        <p class="form-text mt-n2">Esta empresa aún no tiene vehículos activos. <a href="{{ route('vehicles.create') }}">Agrega un vehículo</a>, o emite la tarjeta sin uno.</p>
                     @endif
 
-                    <x-form.select name="driver_id" label="Driver" :options="$driverOptions" :selected="$card?->driver_id"
-                                   placeholder="No driver" help="Optional." />
+                    <x-form.select name="driver_id" label="Conductor" :options="$driverOptions" :selected="$card?->driver_id"
+                                   placeholder="Sin conductor" help="Opcional." />
                     @if ($drivers->isEmpty())
-                        <p class="form-text mt-n2">This company has no active drivers yet. <a href="{{ route('drivers.create') }}">Add a driver</a>, or issue the card without one.</p>
+                        <p class="form-text mt-n2">Esta empresa aún no tiene conductores activos. <a href="{{ route('drivers.create') }}">Agrega un conductor</a>, o emite la tarjeta sin uno.</p>
                     @endif
 
-                    <x-form.select name="allowed_product_id" label="Product restriction" :options="$productOptions" :selected="$card?->allowed_product_id"
-                                   placeholder="Any product the vehicle can use" />
+                    <x-form.select name="allowed_product_id" label="Restricción de producto" :options="$productOptions" :selected="$card?->allowed_product_id"
+                                   placeholder="Cualquier producto que el vehículo pueda usar" />
+
+                    <x-form.select name="fleet_id" label="Flota (opcional)" :options="$fleets->mapWithKeys(fn ($f) => [$f->id => $f->name])" :selected="$card?->fleet_id"
+                                   placeholder="Sin flota" help="La tarjeta hereda las reglas de la flota y suma a su cuota mensual." />
 
                     @unless ($card)
                         <div class="row">
                             <div class="col-md-6">
-                                <x-form.input name="monthly_limit_l" label="Monthly limit (liters)" inputmode="decimal"
-                                              help="Leave empty for no limit; 0 allows no purchases." />
+                                <x-form.input name="monthly_limit_l" label="Límite mensual (litros)" inputmode="decimal"
+                                              help="Déjalo vacío para no poner límite; 0 no permite compras." />
                             </div>
                             <div class="col-md-6">
-                                <x-form.input name="monthly_limit_usd" label="Monthly limit (USD)" inputmode="decimal"
-                                              help="Leave empty for no limit; 0 allows no purchases." />
+                                <x-form.input name="monthly_limit_usd" label="Límite mensual (USD)" inputmode="decimal"
+                                              help="Déjalo vacío para no poner límite; 0 no permite compras." />
                             </div>
                         </div>
                     @endunless
 
                     <div>
-                        <button type="submit" class="btn btn-primary">{{ $card ? 'Save assignment' : 'Issue card' }}</button>
-                        <a class="btn btn-link" href="{{ $card ? route('cards.show', $card) : route('cards.index') }}">Cancel</a>
+                        <button type="submit" class="btn btn-primary">{{ $card ? 'Guardar asignación' : 'Emitir tarjeta' }}</button>
+                        <a class="btn btn-link" href="{{ $card ? route('cards.show', $card) : route('cards.index') }}">Cancelar</a>
                     </div>
                 </fieldset>
             </form>

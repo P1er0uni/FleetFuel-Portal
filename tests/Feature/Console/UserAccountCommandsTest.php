@@ -23,9 +23,9 @@ class UserAccountCommandsTest extends TestCase
 
     private const PASSWORD = 'a-long-local-password';
 
-    private const ASK = 'Password (at least 12 characters)';
+    private const ASK = 'Contraseña (mínimo 12 caracteres)';
 
-    private const REPEAT = 'Repeat the password';
+    private const REPEAT = 'Repite la contraseña';
 
     public function test_creates_a_company_manager_with_a_hidden_password(): void
     {
@@ -39,7 +39,7 @@ class UserAccountCommandsTest extends TestCase
         ])
             ->expectsQuestion(self::ASK, self::PASSWORD)
             ->expectsQuestion(self::REPEAT, self::PASSWORD)
-            ->expectsOutputToContain('Created Company manager new.manager@example.test')
+            ->expectsOutputToContain('Se creó Gerente de empresa new.manager@example.test')
             ->doesntExpectOutputToContain(self::PASSWORD)
             ->assertSuccessful();
 
@@ -109,10 +109,10 @@ class UserAccountCommandsTest extends TestCase
         $station = Station::factory()->create(['is_active' => false]);
 
         $this->artisan('users:create', ['email' => 'a@example.test', '--name' => 'A', '--role' => 'company_manager', '--company' => (string) $company->id])
-            ->expectsOutputToContain('is inactive')
+            ->expectsOutputToContain('está inactiv')
             ->assertFailed();
         $this->artisan('users:create', ['email' => 'b@example.test', '--name' => 'B', '--role' => 'station_operator', '--station' => (string) $station->id])
-            ->expectsOutputToContain('is inactive')
+            ->expectsOutputToContain('está inactiv')
             ->assertFailed();
 
         $this->assertSame(0, User::query()->count());
@@ -141,7 +141,7 @@ class UserAccountCommandsTest extends TestCase
         $this->artisan('users:create', $arguments)
             ->expectsQuestion(self::ASK, self::PASSWORD)
             ->expectsQuestion(self::REPEAT, 'something-else-entirely')
-            ->expectsOutputToContain('The passwords do not match.')
+            ->expectsOutputToContain('Las contraseñas no coinciden.')
             ->assertFailed();
 
         $this->assertSame(0, User::query()->count());
@@ -155,7 +155,7 @@ class UserAccountCommandsTest extends TestCase
             '--role' => 'admin',
             '--no-interaction' => true,
         ])
-            ->expectsOutputToContain('Run this command interactively')
+            ->expectsOutputToContain('Ejecuta este comando de forma interactiva')
             ->assertFailed();
 
         $this->assertSame(0, User::query()->count());
@@ -169,7 +169,7 @@ class UserAccountCommandsTest extends TestCase
         $rememberToken = $manager->remember_token;
 
         $this->artisan('users:deactivate', ['email' => strtoupper($manager->email)])
-            ->expectsOutputToContain('revoked 2 API token(s)')
+            ->expectsOutputToContain('se revocaron 2 token(s) de API')
             ->assertSuccessful();
 
         $manager->refresh();
@@ -185,7 +185,7 @@ class UserAccountCommandsTest extends TestCase
 
         // Running it again changes nothing.
         $this->artisan('users:deactivate', ['email' => $manager->email])
-            ->expectsOutputToContain('already disabled')
+            ->expectsOutputToContain('ya está desactivada')
             ->assertSuccessful();
         $this->assertSame(1, AuditLog::query()->where('action', 'user.deactivated')->count());
     }
@@ -205,7 +205,7 @@ class UserAccountCommandsTest extends TestCase
     public function test_an_unknown_email_is_reported(): void
     {
         $this->artisan('users:deactivate', ['email' => 'nobody@example.test'])
-            ->expectsOutputToContain('No account has that email.')
+            ->expectsOutputToContain('Ninguna cuenta tiene ese correo.')
             ->assertFailed();
         $this->artisan('users:activate', ['email' => 'nobody@example.test'])->assertFailed();
     }

@@ -40,10 +40,10 @@ class DeliveryScreensTest extends TestCase
         $this->actingAs($this->atlasManager())
             ->get('/deliveries')
             ->assertOk()
-            ->assertSee('Deliveries')
-            ->assertSee('Atlas Bekaa hub, Zahle (demo)')
-            ->assertSee('Atlas north yard, Tripoli (demo)')
-            ->assertDontSee('Cedar central kitchen');
+            ->assertSee('Entregas')
+            ->assertSee('Centro Atlas Bekaa, Zahle (demo)')
+            ->assertSee('Patio norte Atlas, Trípoli (demo)')
+            ->assertDontSee('Cocina central Cedro');
 
         $atlasOrder = $this->seededOrder('atlas', DeliveryStatus::Pending);
         $this->actingAs($this->cedarManager());
@@ -56,18 +56,18 @@ class DeliveryScreensTest extends TestCase
         $this->actingAs($this->admin())
             ->get('/deliveries?company='.$this->cedar()->id)
             ->assertOk()
-            ->assertSee('Cedar central kitchen')
-            ->assertDontSee('Atlas Bekaa hub');
+            ->assertSee('Cocina central Cedro')
+            ->assertDontSee('Centro Atlas Bekaa');
         $this->get('/deliveries?status=pending')
             ->assertOk()
-            ->assertSee('Atlas Bekaa hub')
-            ->assertDontSee('Atlas north yard');
+            ->assertSee('Centro Atlas Bekaa')
+            ->assertDontSee('Patio norte Atlas');
     }
 
     public function test_a_manager_requests_a_delivery_in_beirut_time(): void
     {
         $manager = $this->atlasManager();
-        $this->actingAs($manager)->get('/deliveries/create')->assertOk()->assertViewIs('deliveries.form')->assertSee('Atlas Logistics');
+        $this->actingAs($manager)->get('/deliveries/create')->assertOk()->assertViewIs('deliveries.form')->assertSee('Logística Atlas');
 
         $response = $this->post('/deliveries', [
             'address' => 'Atlas workshop, Dora (demo)',
@@ -95,12 +95,12 @@ class DeliveryScreensTest extends TestCase
     public function test_an_admin_chooses_the_company_first(): void
     {
         $this->actingAs($this->admin());
-        $this->get('/deliveries/create')->assertOk()->assertViewIs('deliveries.choose-company')->assertSee('Cedar Catering');
-        $this->get('/deliveries/create?company='.$this->cedar()->id)->assertOk()->assertViewIs('deliveries.form')->assertSee('Cedar Catering');
+        $this->get('/deliveries/create')->assertOk()->assertViewIs('deliveries.choose-company')->assertSee('Catering Cedro');
+        $this->get('/deliveries/create?company='.$this->cedar()->id)->assertOk()->assertViewIs('deliveries.form')->assertSee('Catering Cedro');
 
         $this->post('/deliveries', [
             'company_id' => $this->cedar()->id,
-            'address' => 'Cedar central kitchen, Jdeideh (demo)',
+            'address' => 'Cocina central Cedro, Jdeideh (demo)',
             'governorate' => 'Mount Lebanon',
             'liters' => '300.25',
             'preferred_start_at' => '2026-10-02T09:00',
@@ -121,27 +121,27 @@ class DeliveryScreensTest extends TestCase
         $this->actingAs($this->atlasManager())
             ->get("/deliveries/{$pending->id}")
             ->assertOk()
-            ->assertSee('Requested by Atlas Fleet Manager')
-            ->assertSee('Cancel order')
+            ->assertSee('Solicitada por Gerente de Flota Atlas')
+            ->assertSee('Cancelar orden')
             ->assertSee('name="expected_status" value="pending"', false)
-            ->assertDontSee('Schedule delivery')
-            ->assertDontSee('Audit history');
+            ->assertDontSee('Programar entrega')
+            ->assertDontSee('Historial de auditoría');
         $this->get("/deliveries/{$scheduled->id}")
             ->assertOk()
-            ->assertSee('Distributor staff move the order along')
-            ->assertDontSee('Cancel order')
+            ->assertSee('El personal del distribuidor avanza la orden')
+            ->assertDontSee('Cancelar orden')
             ->assertDontSee('data-delivery-action', false);
 
         $this->actingAs($this->admin())
             ->get("/deliveries/{$pending->id}")
             ->assertOk()
-            ->assertSee('Schedule delivery')
-            ->assertSee('Cancel order')
-            ->assertSee('Audit history');
+            ->assertSee('Programar entrega')
+            ->assertSee('Cancelar orden')
+            ->assertSee('Historial de auditoría');
         $this->get("/deliveries/{$delivered->id}")
             ->assertOk()
-            ->assertSee('It is final and can no longer change.')
-            ->assertSeeInOrder(['Requested by', 'Scheduled by', 'Out for delivery by', 'Delivered by'])
+            ->assertSee('Es definitiva y ya no puede cambiar.')
+            ->assertSeeInOrder(['Solicitada por', 'Programada por', 'En camino por', 'Entregada por'])
             ->assertSee('delivery_order.status_changed');
     }
 
@@ -158,14 +158,14 @@ class DeliveryScreensTest extends TestCase
                 'assigned_truck' => 'TRK-04',
             ])
             ->assertOk()
-            ->assertExactJson(['message' => "Order #{$order->id} scheduled.", 'status' => 'scheduled']);
+            ->assertExactJson(['message' => "Orden #{$order->id} programada.", 'status' => 'scheduled']);
 
         $this->assertSame('2026-09-29 06:00:00', $order->fresh()?->scheduled_start_at?->utc()->format('Y-m-d H:i:s'));
 
         $this->get("/deliveries/{$order->id}/panel")
             ->assertOk()
             ->assertViewIs('deliveries._panel')
-            ->assertSee('Mark out for delivery')
+            ->assertSee('Marcar en camino')
             ->assertSee('name="expected_status" value="scheduled"', false)
             ->assertSee('TRK-04')
             ->assertDontSee('<html', false);
@@ -194,7 +194,7 @@ class DeliveryScreensTest extends TestCase
 
         $this->patchJson("/deliveries/{$order->id}/status", ['expected_status' => 'pending', 'status' => 'scheduled', 'scheduled_start_at' => '2026-09-29T09:00', 'scheduled_end_at' => '2026-09-29T13:00'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['assigned_truck' => 'Assign a truck.']);
+            ->assertJsonValidationErrors(['assigned_truck' => 'Asigna un camión.']);
 
         // Checked by the service: the window must start in the future.
         $this->patchJson("/deliveries/{$order->id}/status", ['expected_status' => 'pending', 'status' => 'scheduled', 'scheduled_start_at' => '2026-09-28T10:00', 'scheduled_end_at' => '2026-09-28T13:00', 'assigned_truck' => 'TRK-04'])
@@ -212,7 +212,7 @@ class DeliveryScreensTest extends TestCase
 
         $this->patch("/deliveries/{$pending->id}/status", ['expected_status' => 'pending', 'status' => 'cancelled', 'reason' => 'Plans changed'])
             ->assertRedirect(route('deliveries.show', $pending))
-            ->assertSessionHas('status', "Order #{$pending->id} cancelled.");
+            ->assertSessionHas('status', "Orden #{$pending->id} cancelada.");
 
         $this->from("/deliveries/{$scheduled->id}")
             ->patch("/deliveries/{$scheduled->id}/status", ['expected_status' => 'pending', 'status' => 'cancelled', 'reason' => 'Plans changed'])

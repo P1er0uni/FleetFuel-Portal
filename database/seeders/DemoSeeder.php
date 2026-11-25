@@ -151,7 +151,7 @@ class DemoSeeder extends Seeder
         $this->assertAllowed($hostedDemo);
 
         if (User::query()->exists()) {
-            $this->command->info('The database already has users; demo data was not seeded and nothing changed.');
+            $this->command->info('La base de datos ya tiene usuarios; los datos demo no se sembraron y no cambió nada.');
 
             return;
         }
@@ -160,8 +160,8 @@ class DemoSeeder extends Seeder
 
         DB::transaction(fn () => $this->seed($clock));
 
-        $this->command->info("Demo data seeded as of {$clock->toIso8601ZuluString()}.");
-        $this->command->table(['Table', 'Rows'], $this->counts());
+        $this->command->info("Datos demo sembrados a partir de {$clock->toIso8601ZuluString()}.");
+        $this->command->table(['Tabla', 'Filas'], $this->counts());
     }
 
     private function assertAllowed(bool $hostedDemo): void
@@ -169,15 +169,15 @@ class DemoSeeder extends Seeder
         $allowed = app()->environment(['local', 'testing']) || ($hostedDemo && app()->isProduction());
 
         if (! $allowed) {
-            throw new RuntimeException('Demo data may only be seeded in the local or testing environment, or on a production demo deployment with `php artisan demo:seed --force`.');
+            throw new RuntimeException('Los datos demo solo pueden sembrarse en el entorno local o de testing, o en un despliegue demo de producción con `php artisan demo:seed --force`.');
         }
 
         if (! config('fleetfuel.demo.enabled')) {
-            throw new RuntimeException('DEMO_MODE is off; demo data was not seeded.');
+            throw new RuntimeException('DEMO_MODE está desactivado; los datos demo no se sembraron.');
         }
 
         if (blank(config('fleetfuel.demo.password'))) {
-            throw new RuntimeException('Set DEMO_PASSWORD in .env before seeding the demo accounts.');
+            throw new RuntimeException('Configura DEMO_PASSWORD en .env antes de sembrar las cuentas demo.');
         }
     }
 
@@ -192,24 +192,24 @@ class DemoSeeder extends Seeder
         $products = Product::query()->get()->keyBy('code');
 
         $stations = [
-            'harbor' => $this->station('Harbor Demo Station', 'Beirut', 'Beirut', '33.9010000', '35.5190000'),
-            'north' => $this->station('North Demo Station', 'Tripoli', 'North', '34.4367000', '35.8497000'),
-            'south' => $this->station('South Demo Station', 'Sidon', 'South', '33.5571000', '35.3729000', active: false),
+            'harbor' => $this->station('Estación Demo Puerto', 'Beirut', 'Beirut', '33.9010000', '35.5190000'),
+            'north' => $this->station('Estación Demo Norte', 'Trípoli', 'North', '34.4367000', '35.8497000'),
+            'south' => $this->station('Estación Demo Sur', 'Sidón', 'South', '33.5571000', '35.3729000', active: false),
         ];
 
         $companies = [
-            'atlas' => Company::query()->forceCreate(['name' => 'Atlas Logistics', 'tax_no' => 'LB-DEMO-1001', 'status' => CompanyStatus::Active]),
-            'cedar' => Company::query()->forceCreate(['name' => 'Cedar Catering', 'tax_no' => 'LB-DEMO-1002', 'status' => CompanyStatus::Active]),
+            'atlas' => Company::query()->forceCreate(['name' => 'Logística Atlas', 'tax_no' => 'LB-DEMO-1001', 'status' => CompanyStatus::Active]),
+            'cedar' => Company::query()->forceCreate(['name' => 'Catering Cedro', 'tax_no' => 'LB-DEMO-1002', 'status' => CompanyStatus::Active]),
         ];
 
-        $admin = $this->user('Demo Admin', 'admin@fleetfuel.test', UserRole::Admin, $asOf);
+        $admin = $this->user('Administrador Demo', 'admin@fleetfuel.test', UserRole::Admin, $asOf);
         $managers = [
-            'atlas' => $this->user('Atlas Fleet Manager', 'manager.atlas@fleetfuel.test', UserRole::CompanyManager, $asOf, company: $companies['atlas']),
-            'cedar' => $this->user('Cedar Fleet Manager', 'manager.cedar@fleetfuel.test', UserRole::CompanyManager, $asOf, company: $companies['cedar']),
+            'atlas' => $this->user('Gerente de Flota Atlas', 'manager.atlas@fleetfuel.test', UserRole::CompanyManager, $asOf, company: $companies['atlas']),
+            'cedar' => $this->user('Gerente de Flota Cedro', 'manager.cedar@fleetfuel.test', UserRole::CompanyManager, $asOf, company: $companies['cedar']),
         ];
         $operators = [
-            'harbor' => $this->user('Harbor Station Operator', 'operator.beirut@fleetfuel.test', UserRole::StationOperator, $asOf, station: $stations['harbor']),
-            'north' => $this->user('North Station Operator', 'operator.tripoli@fleetfuel.test', UserRole::StationOperator, $asOf, station: $stations['north']),
+            'harbor' => $this->user('Operador Estación Puerto', 'operator.beirut@fleetfuel.test', UserRole::StationOperator, $asOf, station: $stations['harbor']),
+            'north' => $this->user('Operador Estación Norte', 'operator.tripoli@fleetfuel.test', UserRole::StationOperator, $asOf, station: $stations['north']),
         ];
 
         foreach ($products as $code => $product) {
@@ -224,7 +224,7 @@ class DemoSeeder extends Seeder
         if ($hasCurrentMonth) {
             $plan = [...$plan, ...$this->schedule(self::CURRENT_MONTH_PURCHASES, $currentStart, $asOf)];
         } else {
-            $this->command->warn('The as-of time is less than two hours into its month; current-month scenarios were skipped.');
+            $this->command->warn('La hora as-of está a menos de dos horas de su mes; se omitieron los escenarios del mes actual.');
         }
 
         // Record in time order so ledger IDs increase with event time.
@@ -302,7 +302,7 @@ class DemoSeeder extends Seeder
                 '89700.00000000',
                 $start,
                 $start->addSeconds(min(24 * 3600, intdiv($windowSeconds * 300, 1000))),
-                'Demo scenario: temporary bank-rate adjustment',
+                'Escenario demo: ajuste temporal de tasa bancaria',
             );
         }
     }
@@ -362,28 +362,28 @@ class DemoSeeder extends Seeder
      */
     private function seedDeliveries(array $companies, User $admin, array $managers, CarbonImmutable $asOf): void
     {
-        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Atlas depot, Port Road, Beirut (demo)', 'Beirut', '2000.00', $asOf->subDays(9), $asOf->subDays(12));
+        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Depósito Atlas, Carretera del Puerto, Beirut (demo)', 'Beirut', '2000.00', $asOf->subDays(9), $asOf->subDays(12));
         $this->scheduleDelivery($order, $admin, $asOf->subDays(11), $asOf->subDays(9), 'TRK-01');
         $this->builder->transitionDelivery($order, DeliveryStatus::OutForDelivery, $admin, $asOf->subDays(9)->addMinutes(15));
         $this->builder->transitionDelivery($order, DeliveryStatus::Delivered, $admin, $asOf->subDays(9)->addHours(2));
 
-        $order = $this->delivery($companies['cedar'], $managers['cedar'], 'Cedar central kitchen, Jdeideh (demo)', 'Mount Lebanon', '1500.00', $asOf->subDays(6), $asOf->subDays(8));
+        $order = $this->delivery($companies['cedar'], $managers['cedar'], 'Cocina central Cedro, Jdeideh (demo)', 'Mount Lebanon', '1500.00', $asOf->subDays(6), $asOf->subDays(8));
         $this->scheduleDelivery($order, $admin, $asOf->subDays(7), $asOf->subDays(6), 'TRK-02');
         $this->builder->transitionDelivery($order, DeliveryStatus::OutForDelivery, $admin, $asOf->subDays(6)->addMinutes(10));
         $this->builder->transitionDelivery($order, DeliveryStatus::Delivered, $admin, $asOf->subDays(6)->addHours(3));
 
-        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Atlas north yard, Tripoli (demo)', 'North', '3000.00', $asOf->subHour(), $asOf->subDays(3));
+        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Patio norte Atlas, Trípoli (demo)', 'North', '3000.00', $asOf->subHour(), $asOf->subDays(3));
         $this->scheduleDelivery($order, $admin, $asOf->subDays(2), $asOf->subHour(), 'TRK-01');
         $this->builder->transitionDelivery($order, DeliveryStatus::OutForDelivery, $admin, $asOf->subMinutes(45));
 
-        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Atlas depot, Port Road, Beirut (demo)', 'Beirut', '1200.00', $asOf->addDay(), $asOf->subDay());
+        $order = $this->delivery($companies['atlas'], $managers['atlas'], 'Depósito Atlas, Carretera del Puerto, Beirut (demo)', 'Beirut', '1200.00', $asOf->addDay(), $asOf->subDay());
         $this->scheduleDelivery($order, $admin, $asOf->subHours(20), $asOf->addDay(), 'TRK-03');
 
-        $this->delivery($companies['atlas'], $managers['atlas'], 'Atlas Bekaa hub, Zahle (demo)', 'Bekaa', '2500.00', $asOf->addDays(2), $asOf->subHours(2));
+        $this->delivery($companies['atlas'], $managers['atlas'], 'Centro Atlas Bekaa, Zahle (demo)', 'Bekaa', '2500.00', $asOf->addDays(2), $asOf->subHours(2));
 
-        $order = $this->delivery($companies['cedar'], $managers['cedar'], 'Cedar central kitchen, Jdeideh (demo)', 'Mount Lebanon', '1000.00', $asOf->subDays(2), $asOf->subDays(5));
+        $order = $this->delivery($companies['cedar'], $managers['cedar'], 'Cocina central Cedro, Jdeideh (demo)', 'Mount Lebanon', '1000.00', $asOf->subDays(2), $asOf->subDays(5));
         $this->builder->transitionDelivery($order, DeliveryStatus::Cancelled, $managers['cedar'], $asOf->subDays(4), [
-            'cancel_reason' => 'Duplicate order placed by mistake',
+            'cancel_reason' => 'Orden duplicada por error',
         ]);
     }
 

@@ -16,9 +16,9 @@ enum UserRole: string
     public function label(): string
     {
         return match ($this) {
-            self::Admin => 'Admin',
-            self::CompanyManager => 'Company manager',
-            self::StationOperator => 'Station operator',
+            self::Admin => 'Administrador',
+            self::CompanyManager => 'Gerente de empresa',
+            self::StationOperator => 'Operador de estación',
         };
     }
 
@@ -36,11 +36,13 @@ enum UserRole: string
                 'reference:read', 'transactions:read', 'cards:read', 'cards:write',
                 'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
                 'deliveries:status', 'reports:read', 'exports:read',
+                'notifications:read', 'notifications:write',
             ],
             self::CompanyManager => [
                 'reference:read', 'transactions:read', 'cards:read', 'cards:write',
                 'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
                 'reports:read', 'exports:read',
+                'notifications:read', 'notifications:write',
             ],
             self::StationOperator => [
                 'reference:read', 'transactions:create', 'transactions:read', 'cards:read',

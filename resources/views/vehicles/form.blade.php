@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', $vehicle ? 'Edit vehicle' : 'Add vehicle')
+@section('title', $vehicle ? 'Editar vehículo' : 'Agregar vehículo')
 
 @section('content')
-    <h1 class="h3 mb-3">{{ $vehicle ? 'Edit vehicle '.$vehicle->plate_no : 'Add vehicle' }}</h1>
+    <h1 class="h3 mb-3">{{ $vehicle ? 'Editar vehículo '.$vehicle->plate_no : 'Agregar vehículo' }}</h1>
 
     <div class="row">
         <div class="col-lg-7">
@@ -15,35 +15,40 @@
 
                 @if ($companies !== null)
                     @if ($companies->isEmpty())
-                        <div class="alert alert-warning">There is no active company yet. <a href="{{ route('companies.create') }}">Add a company</a> first.</div>
+                        <div class="alert alert-warning">Todavía no hay ninguna empresa activa. Primero <a href="{{ route('companies.create') }}">agrega una empresa</a>.</div>
                     @endif
-                    <x-form.select name="company_id" label="Company" :options="$companies" placeholder="Choose a company" required />
+                    <x-form.select name="company_id" label="Empresa" :options="$companies" placeholder="Elige una empresa" required />
                 @else
-                    <p class="mb-3">Company: <strong>{{ $ownCompany?->name }}</strong></p>
+                    <p class="mb-3">Empresa: <strong>{{ $ownCompany?->name }}</strong></p>
                 @endif
 
-                <x-form.input name="plate_no" label="Plate number" :value="$vehicle?->plate_no" required maxlength="30"
-                              help="Letters, digits, spaces and hyphens. Stored in capitals." />
+                <x-form.input name="plate_no" label="Número de placa" :value="$vehicle?->plate_no" required maxlength="30"
+                              help="Letras, dígitos, espacios y guiones. Se guarda en mayúsculas." />
 
                 @if ($vehicle)
-                    <p class="mb-3">Fuel type: <strong>{{ ucfirst($vehicle->fuel_type->value) }}</strong> (fixed when the vehicle was added)</p>
+                    <p class="mb-3">Tipo de combustible: <strong>{{ $vehicle->fuel_type->value === 'diesel' ? 'Diésel' : 'Gasolina' }}</strong> (fijo al agregar el vehículo)</p>
                 @else
-                    <x-form.select name="fuel_type" label="Fuel type" :options="['diesel' => 'Diesel', 'petrol' => 'Petrol']" placeholder="Choose a fuel type" required />
+                    <x-form.select name="fuel_type" label="Tipo de combustible" :options="['diesel' => 'Diésel', 'petrol' => 'Gasolina']" placeholder="Elige un tipo de combustible" required />
                 @endif
 
                 <div class="row">
                     <div class="col-md-6">
-                        <x-form.input name="tank_capacity_l" label="Tank capacity (L)" :value="$vehicle?->tank_capacity_l" required inputmode="decimal"
-                                      help="For example 60 or 60.5." />
+                        <x-form.input name="tank_capacity_l" label="Capacidad del tanque (L)" :value="$vehicle?->tank_capacity_l" required inputmode="decimal"
+                                      help="Por ejemplo 60 o 60.5." />
                     </div>
                     <div class="col-md-6">
-                        <x-form.input name="odometer_km" label="Odometer (km)" type="number" min="0" step="1" :value="$vehicle?->odometer_km" help="Optional." />
+                        <x-form.input name="odometer_km" label="Odómetro (km)" type="number" min="0" step="1" :value="$vehicle?->odometer_km" help="Opcional." />
                     </div>
                 </div>
 
+                @if ($fleets->isNotEmpty())
+                    <x-form.select name="fleet_id" label="Flota (opcional)" :options="$fleets" :selected="$vehicle?->fleet_id"
+                                   placeholder="Sin flota" help="Agrupa el vehículo con la cuota y las reglas de esa flota." />
+                @endif
+
                 <div>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                    <a class="btn btn-link" href="{{ route('vehicles.index') }}">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <a class="btn btn-link" href="{{ route('vehicles.index') }}">Cancelar</a>
                 </div>
             </form>
         </div>

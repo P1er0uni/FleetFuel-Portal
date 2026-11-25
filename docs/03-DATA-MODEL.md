@@ -13,6 +13,11 @@ erDiagram
     COMPANIES ||--o{ VEHICLES : owns
     COMPANIES ||--o{ DRIVERS : employs
     COMPANIES ||--o{ FUEL_CARDS : owns
+    COMPANIES ||--o{ FLEETS : owns
+    FLEETS ||--o{ FLEET_RULES : governs
+    FLEETS |o--o{ VEHICLES : groups
+    FLEETS |o--o{ DRIVERS : groups
+    FLEETS |o--o{ FUEL_CARDS : groups
     VEHICLES |o--o{ FUEL_CARDS : assigned
     DRIVERS |o--o{ FUEL_CARDS : assigned
     PRODUCTS |o--o{ FUEL_CARDS : restricts
@@ -35,6 +40,11 @@ erDiagram
     USERS ||--o{ DELIVERY_STATUS_HISTORY : changes
     USERS |o--o{ AUDIT_LOGS : acts
     COMPANIES |o--o{ AUDIT_LOGS : scopes
+    COMPANIES ||--o{ NOTIFICATION_RULES : owns
+    FLEETS |o--o{ NOTIFICATION_RULES : scopes
+    COMPANIES ||--o{ NOTIFICATIONS : owns
+    NOTIFICATION_RULES ||--o{ NOTIFICATIONS : produces
+    USERS |o--o{ NOTIFICATIONS : receives
 ```
 
 Same-company rules are enforced by composite foreign keys, not only by validation: `fuel_cards (company_id, vehicle_id)` and `(company_id, driver_id)` must match `vehicles`/`drivers (company_id, id)`, and `fuel_transactions (company_id, fuel_card_id | vehicle_id | driver_id)` must match the card, vehicle and driver of that company. A composite key with a NULL part is not checked, so unassigned cards remain valid.
@@ -47,9 +57,13 @@ Same-company rules are enforced by composite foreign keys, not only by validatio
 | `stations` | `name varchar(120)`, `district varchar(80)`, `governorate varchar(80)`, nullable `latitude decimal(10,7)`, nullable `longitude decimal(10,7)`, `is_active boolean` |
 | `users` | Laravel auth fields, unique `email`, `role varchar(30)`, nullable `company_id FK`, nullable `station_id FK`, `is_active boolean`; manager requires company only, operator station only, admin neither |
 | `products` | unique `code varchar(20)` ULP95/ULP98/DIESEL, `name varchar(80)`, `fuel_type varchar(20)` petrol/diesel, `unit varchar(10)` L, `is_active boolean` |
-| `vehicles` | `company_id FK`, unique `plate_no varchar(30)`, `fuel_type varchar(20)` petrol/diesel, `tank_capacity_l decimal(10,2)` positive, nullable `odometer_km bigint` nonnegative, `is_active boolean` |
-| `drivers` | `company_id FK`, `name varchar(120)`, nullable `phone varchar(30)`, `license_no varchar(50)`, `is_active boolean`; unique `(company_id, license_no)` |
-| `fuel_cards` | `company_id FK`, nullable `vehicle_id FK`, nullable `driver_id FK`, unique `card_no varchar(40)`, nullable `allowed_product_id FK`, nullable `monthly_limit_l decimal(12,2)`, nullable `monthly_limit_usd decimal(18,2)`, `status varchar(20)` active/blocked/archived |
+| `vehicles` | `company_id FK`, nullable `fleet_id FK` (SET NULL), unique `plate_no varchar(30)`, `fuel_type varchar(20)` petrol/diesel, `tank_capacity_l decimal(10,2)` positive, nullable `odometer_km bigint` nonnegative, `is_active boolean` |
+| `drivers` | `company_id FK`, nullable `fleet_id FK` (SET NULL), `name varchar(120)`, nullable `phone varchar(30)`, `license_no varchar(50)`, `is_active boolean`; unique `(company_id, license_no)` |
+| `fuel_cards` | `company_id FK`, nullable `fleet_id FK` (SET NULL), nullable `vehicle_id FK`, nullable `driver_id FK`, unique `card_no varchar(40)`, nullable `allowed_product_id FK`, nullable `monthly_limit_l decimal(12,2)`, nullable `monthly_limit_usd decimal(18,2)`, `status varchar(20)` active/blocked/archived |
+| `fleets` | `company_id FK` (cascade), `name varchar(100)`, nullable `description varchar(255)`, `status varchar(20)` active/inactive, nullable `monthly_quota_liters decimal(12,3)`, nullable `monthly_quota_amount decimal(18,2)` USD; unique `(company_id, name)` |
+| `fleet_rules` | `fleet_id FK` (cascade), `rule_type varchar(40)` allowed_products/allowed_stations/max_liters_per_transaction/max_transactions_per_day, `rule_value json` (`{"ids": [...]}` or `{"value": "..."}`), `active boolean`; one rule per type per fleet |
+| `notification_rules` | `company_id FK` (cascade), nullable `fleet_id FK` (SET NULL), `event_type varchar(50)` quota_exceeded/quota_warning/card_blocked/anomaly_detected/delivery_completed/delivery_cancelled/fleet_rule_violated, `channel varchar(20)` in_app/email/log, nullable `threshold_value decimal(12,3)`, nullable `threshold_operator varchar(3)` gte/lte/eq, `active boolean`; index `(company_id, active)` |
+| `notifications` | `company_id FK` (cascade), `notification_rule_id FK` (cascade), nullable `user_id FK` (SET NULL), `event_type varchar(50)`, `title varchar(255)`, `message text`, nullable `payload json`, `entity_hash varchar(64)` (deduplication), nullable `read_at`; indexes `(company_id, read_at)`, `(user_id, read_at)`, `(notification_rule_id, event_type, entity_hash)` |
 
 Use application validation and compatible DB checks for positive values/role ownership. Do not use native database ENUMs. Validate same-company card/vehicle/driver relationships on writes, including attempts using other tenants' IDs. Treat company ownership fields as immutable after creation. A card's vehicle, driver and product restriction may change only before its first accepted transaction; quotas and active/blocked status remain editable. Archive is terminal. Do not hard-delete master rows referenced by transactions/audit/history. Products, stations, drivers and vehicles use `is_active`; companies use status.
 

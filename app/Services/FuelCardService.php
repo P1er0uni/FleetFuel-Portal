@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Enums\CardStatus;
 use App\Enums\CompanyStatus;
+use App\Enums\FleetStatus;
+use App\Events\CardBlocked;
 use App\Exceptions\BusinessRuleViolation;
 use App\Models\CardMonthlyUsage;
 use App\Models\Company;
 use App\Models\Driver;
+use App\Models\Fleet;
 use App\Models\FuelCard;
 use App\Models\Product;
 use App\Models\User;
@@ -38,6 +41,7 @@ class FuelCardService
     /**
      * Issue a card to a company. The caller finds the vehicle, driver and
      * product through tenant-scoped queries; they are checked again here.
+     * The optional fleet must be an active fleet of the same company.
      */
     public function create(
         Company $company,
@@ -47,17 +51,19 @@ class FuelCardService
         ?string $limitL,
         ?string $limitUsd,
         User $actor,
+        ?Fleet $fleet = null,
     ): FuelCard {
         $this->ensureCompanyActive($company);
-        $this->ensureAssignable($company, $vehicle, $driver, $product);
+        $this->ensureAssignable($company, $vehicle, $driver, $product, fleet: $fleet);
 
-        return DB::transaction(function () use ($company, $vehicle, $driver, $product, $limitL, $limitUsd, $actor): FuelCard {
+        return DB::transaction(function () use ($company, $vehicle, $driver, $product, $limitL, $limitUsd, $actor, $fleet): FuelCard {
             $card = new FuelCard;
             $card->forceFill([
                 'company_id' => $company->id,
                 'vehicle_id' => $vehicle?->id,
                 'driver_id' => $driver?->id,
                 'allowed_product_id' => $product?->id,
+                'fleet_id' => $fleet?->id,
                 'card_no' => $this->newCardNumber(),
                 'monthly_limit_l' => Decimal::normalize($limitL),
                 'monthly_limit_usd' => Decimal::normalize($limitUsd),
@@ -72,23 +78,24 @@ class FuelCardService
     }
 
     /**
-     * Change the vehicle, driver or product restriction. Allowed only until
-     * the card's first accepted purchase.
+     * Change the vehicle, driver, product restriction or fleet. Allowed
+     * only until the card's first accepted purchase.
      */
-    public function updateAssignment(FuelCard $card, ?Vehicle $vehicle, ?Driver $driver, ?Product $product, User $actor): FuelCard
+    public function updateAssignment(FuelCard $card, ?Vehicle $vehicle, ?Driver $driver, ?Product $product, User $actor, ?Fleet $fleet = null): FuelCard
     {
-        return DB::transaction(function () use ($card, $vehicle, $driver, $product, $actor): FuelCard {
+        return DB::transaction(function () use ($card, $vehicle, $driver, $product, $actor, $fleet): FuelCard {
             $card = $this->lock($card);
             $this->ensureNotArchived($card);
             $company = Company::query()->findOrFail($card->company_id);
             $this->ensureCompanyActive($company);
-            $this->ensureAssignable($company, $vehicle, $driver, $product, $card);
+            $this->ensureAssignable($company, $vehicle, $driver, $product, $card, $fleet);
 
             $old = $this->assignment($card);
             $card->forceFill([
                 'vehicle_id' => $vehicle?->id,
                 'driver_id' => $driver?->id,
                 'allowed_product_id' => $product?->id,
+                'fleet_id' => $fleet?->id,
             ]);
 
             if (! $card->isDirty()) {
@@ -173,7 +180,9 @@ class FuelCardService
      */
     public function changeStatus(FuelCard $card, CardStatus $status, User $actor): FuelCard
     {
-        return DB::transaction(function () use ($card, $status, $actor): FuelCard {
+        $becameBlocked = false;
+
+        $card = DB::transaction(function () use ($card, $status, $actor, &$becameBlocked): FuelCard {
             $card = $this->lock($card);
             $this->ensureNotArchived($card);
 
@@ -193,8 +202,16 @@ class FuelCardService
                 ['status' => $status->value],
             );
 
+            $becameBlocked = $status === CardStatus::Blocked;
+
             return $card;
         });
+
+        if ($becameBlocked) {
+            event(new CardBlocked((int) $card->id, (int) $card->company_id, $card->fleet_id, (string) $card->card_no));
+        }
+
+        return $card;
     }
 
     /**
@@ -267,7 +284,7 @@ class FuelCardService
      * every other caller. An unchanged assignment may keep a record that has
      * since been deactivated.
      */
-    private function ensureAssignable(Company $company, ?Vehicle $vehicle, ?Driver $driver, ?Product $product, ?FuelCard $current = null): void
+    private function ensureAssignable(Company $company, ?Vehicle $vehicle, ?Driver $driver, ?Product $product, ?FuelCard $current = null, ?Fleet $fleet = null): void
     {
         $errors = [];
 
@@ -283,6 +300,10 @@ class FuelCardService
 
         if ($product !== null && ! $product->is_active && $current?->allowed_product_id !== $product->id) {
             $errors['allowed_product_id'] = 'Choose an active product.';
+        }
+
+        if ($fleet !== null && ($fleet->company_id !== $company->id || $fleet->status !== FleetStatus::Active)) {
+            $errors['fleet_id'] = 'Choose an active fleet of this company.';
         }
 
         if ($vehicle !== null && $product !== null && $product->fuel_type !== $vehicle->fuel_type) {
@@ -331,6 +352,7 @@ class FuelCardService
             'vehicle_id' => $card->vehicle_id,
             'driver_id' => $card->driver_id,
             'allowed_product_id' => $card->allowed_product_id,
+            'fleet_id' => $card->fleet_id,
         ];
     }
 

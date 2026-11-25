@@ -35,28 +35,28 @@
     {
       "email": "manager.atlas@fleetfuel.test",
       "role": "company_manager",
-      "company": "Atlas Logistics"
+      "company": "Logística Atlas"
     },
     {
       "email": "manager.cedar@fleetfuel.test",
       "role": "company_manager",
-      "company": "Cedar Catering"
+      "company": "Catering Cedro"
     },
     {
       "email": "operator.beirut@fleetfuel.test",
       "role": "station_operator",
-      "station": "Harbor Demo Station"
+      "station": "Estación Demo Puerto"
     },
     {
       "email": "operator.tripoli@fleetfuel.test",
       "role": "station_operator",
-      "station": "North Demo Station"
+      "station": "Estación Demo Norte"
     }
   ],
   "cards": [
     {
       "card_no": "FF-ATLAS-001",
-      "company": "Atlas Logistics",
+      "company": "Logística Atlas",
       "status": "active",
       "fuel_type": "diesel",
       "monthly_limit_l": "100.00",
@@ -67,7 +67,7 @@
     },
     {
       "card_no": "FF-ATLAS-BLOCKED",
-      "company": "Atlas Logistics",
+      "company": "Logística Atlas",
       "status": "blocked",
       "fuel_type": "diesel",
       "monthly_limit_l": "100.00",
@@ -75,7 +75,7 @@
     },
     {
       "card_no": "FF-ATLAS-TINY",
-      "company": "Atlas Logistics",
+      "company": "Logística Atlas",
       "status": "active",
       "fuel_type": "diesel",
       "monthly_limit_l": "5.00",
@@ -83,7 +83,7 @@
     },
     {
       "card_no": "FF-CEDAR-001",
-      "company": "Cedar Catering",
+      "company": "Catering Cedro",
       "status": "active",
       "fuel_type": "diesel",
       "monthly_limit_l": "100.00",

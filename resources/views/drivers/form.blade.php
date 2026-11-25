@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', $driver ? 'Edit driver' : 'Add driver')
+@section('title', $driver ? 'Editar conductor' : 'Agregar conductor')
 
 @section('content')
-    <h1 class="h3 mb-3">{{ $driver ? 'Edit driver '.$driver->name : 'Add driver' }}</h1>
+    <h1 class="h3 mb-3">{{ $driver ? 'Editar conductor '.$driver->name : 'Agregar conductor' }}</h1>
 
     <div class="row">
         <div class="col-lg-7">
@@ -15,27 +15,32 @@
 
                 @if ($companies !== null)
                     @if ($companies->isEmpty())
-                        <div class="alert alert-warning">There is no active company yet. <a href="{{ route('companies.create') }}">Add a company</a> first.</div>
+                        <div class="alert alert-warning">Todavía no hay ninguna empresa activa. Primero <a href="{{ route('companies.create') }}">agrega una empresa</a>.</div>
                     @endif
-                    <x-form.select name="company_id" label="Company" :options="$companies" placeholder="Choose a company" required />
+                    <x-form.select name="company_id" label="Empresa" :options="$companies" placeholder="Elige una empresa" required />
                 @else
-                    <p class="mb-3">Company: <strong>{{ $ownCompany?->name }}</strong></p>
+                    <p class="mb-3">Empresa: <strong>{{ $ownCompany?->name }}</strong></p>
                 @endif
 
-                <x-form.input name="name" label="Name" :value="$driver?->name" required maxlength="120" />
+                <x-form.input name="name" label="Nombre" :value="$driver?->name" required maxlength="120" />
                 <div class="row">
                     <div class="col-md-6">
-                        <x-form.input name="license_no" label="License number" :value="$driver?->license_no" required maxlength="50"
-                                      help="Unique within the company." />
+                        <x-form.input name="license_no" label="Número de licencia" :value="$driver?->license_no" required maxlength="50"
+                                      help="Único dentro de la empresa." />
                     </div>
                     <div class="col-md-6">
-                        <x-form.input name="phone" label="Phone" type="tel" :value="$driver?->phone" maxlength="30" help="Optional." />
+                        <x-form.input name="phone" label="Teléfono" type="tel" :value="$driver?->phone" maxlength="30" help="Opcional." />
                     </div>
                 </div>
 
+                @if ($fleets->isNotEmpty())
+                    <x-form.select name="fleet_id" label="Flota (opcional)" :options="$fleets" :selected="$driver?->fleet_id"
+                                   placeholder="Sin flota" help="Agrupa al conductor con la cuota y las reglas de esa flota." />
+                @endif
+
                 <div>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                    <a class="btn btn-link" href="{{ route('drivers.index') }}">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <a class="btn btn-link" href="{{ route('drivers.index') }}">Cancelar</a>
                 </div>
             </form>
         </div>

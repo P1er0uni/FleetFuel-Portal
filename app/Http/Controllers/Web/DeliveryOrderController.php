@@ -73,7 +73,7 @@ class DeliveryOrderController extends Controller
     {
         $order = $deliveries->create($request->company(), $request->details(), $this->actor($request));
 
-        return redirect()->route('deliveries.show', $order)->with('status', "Delivery order #{$order->id} requested. It is pending until distributor staff schedule it.");
+        return redirect()->route('deliveries.show', $order)->with('status', "Orden de entrega #{$order->id} solicitada. Queda pendiente hasta que el personal del distribuidor la programe.");
     }
 
     public function show(Request $request, DeliveryOrder $delivery): View
@@ -112,11 +112,11 @@ class DeliveryOrderController extends Controller
         );
 
         $message = match ($order->status) {
-            DeliveryStatus::Scheduled => "Order #{$order->id} scheduled.",
-            DeliveryStatus::OutForDelivery => "Order #{$order->id} is out for delivery.",
-            DeliveryStatus::Delivered => "Order #{$order->id} delivered.",
-            DeliveryStatus::Cancelled => "Order #{$order->id} cancelled.",
-            DeliveryStatus::Pending => "Order #{$order->id} is pending.",
+            DeliveryStatus::Scheduled => "Orden #{$order->id} programada.",
+            DeliveryStatus::OutForDelivery => "Orden #{$order->id} en camino.",
+            DeliveryStatus::Delivered => "Orden #{$order->id} entregada.",
+            DeliveryStatus::Cancelled => "Orden #{$order->id} cancelada.",
+            DeliveryStatus::Pending => "Orden #{$order->id} pendiente.",
         };
 
         if ($request->expectsJson()) {

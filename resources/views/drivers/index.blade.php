@@ -1,36 +1,36 @@
 @extends('layouts.app')
 
-@section('title', 'Drivers')
+@section('title', 'Conductores')
 
 @section('content')
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 class="h3 mb-0">Drivers</h1>
+        <h1 class="h3 mb-0">Conductores</h1>
         @can('create', App\Models\Driver::class)
-            <a class="btn btn-primary" href="{{ route('drivers.create') }}">Add driver</a>
+            <a class="btn btn-primary" href="{{ route('drivers.create') }}">Agregar conductor</a>
         @endcan
     </div>
 
     @include('partials.list-filters', [
-        'searchLabel' => 'Name or license number',
-        'statusOptions' => ['active' => 'Active', 'inactive' => 'Inactive'],
+        'searchLabel' => 'Nombre o número de licencia',
+        'statusOptions' => ['active' => 'Activo', 'inactive' => 'Inactivo'],
         'companies' => $companies,
     ])
 
     @if ($drivers->isEmpty())
-        <p class="text-body-secondary">No drivers match these filters.</p>
+        <p class="text-body-secondary">Ningún conductor coincide con estos filtros.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Name</th>
+                        <th scope="col">Nombre</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">License</th>
-                        <th scope="col">Phone</th>
-                        <th scope="col">Status</th>
-                        <th scope="col"><span class="visually-hidden">Actions</span></th>
+                        <th scope="col">Licencia</th>
+                        <th scope="col">Teléfono</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col"><span class="visually-hidden">Acciones</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,7 +44,7 @@
                             <td>{{ $driver->phone ?? '—' }}</td>
                             <td>@include('partials.active-badge', ['active' => $driver->is_active])</td>
                             <td class="text-end text-nowrap">
-                                <a class="btn btn-sm btn-outline-primary" href="{{ route('drivers.edit', $driver) }}">Edit<span class="visually-hidden"> {{ $driver->name }}</span></a>
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('drivers.edit', $driver) }}">Editar<span class="visually-hidden"> {{ $driver->name }}</span></a>
                                 @include('partials.active-toggle', ['action' => route('drivers.active', $driver), 'active' => $driver->is_active, 'name' => $driver->name])
                             </td>
                         </tr>

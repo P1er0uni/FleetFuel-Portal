@@ -23,19 +23,19 @@ class UiShellTest extends TestCase
 
     /** Route => navigation label. */
     private const LINKS = [
-        'dashboard' => 'Dashboard',
-        'station.home' => 'Station',
-        'transactions.index' => 'Transactions',
-        'reports.consumption' => 'Reports',
-        'deliveries.index' => 'Deliveries',
-        'companies.index' => 'Companies',
-        'vehicles.index' => 'Vehicles',
-        'drivers.index' => 'Drivers',
-        'cards.index' => 'Cards',
-        'stations.index' => 'Stations',
-        'products.index' => 'Products and prices',
-        'integrations.exchange-rates' => 'Exchange rates',
-        'audit.index' => 'Audit log',
+        'dashboard' => 'Panel',
+        'station.home' => 'Estación',
+        'transactions.index' => 'Transacciones',
+        'reports.consumption' => 'Reportes',
+        'deliveries.index' => 'Entregas',
+        'companies.index' => 'Empresas',
+        'vehicles.index' => 'Vehículos',
+        'drivers.index' => 'Conductores',
+        'cards.index' => 'Tarjetas',
+        'stations.index' => 'Estaciones',
+        'products.index' => 'Productos y precios',
+        'integrations.exchange-rates' => 'Tasas de cambio',
+        'audit.index' => 'Auditoría',
     ];
 
     protected function setUp(): void
@@ -75,15 +75,15 @@ class UiShellTest extends TestCase
     public function test_the_shell_has_a_skip_link_a_current_page_marker_and_a_menu_button(): void
     {
         $page = $this->actingAs($this->atlasManager())->get('/transactions')->assertOk()
-            ->assertSee('<a class="visually-hidden-focusable skip-link" href="#main">Skip to main content</a>', false)
+            ->assertSee('<a class="visually-hidden-focusable skip-link" href="#main">Saltar al contenido principal</a>', false)
             ->assertSee('<main id="main"', false)
             ->assertSee('data-bs-toggle="offcanvas" data-bs-target="#app-sidebar"', false)
-            ->assertSee('aria-label="Close menu"', false)
-            ->assertSee('<nav aria-label="Main">', false);
+            ->assertSee('aria-label="Cerrar menú"', false)
+            ->assertSee('<nav aria-label="Principal">', false);
 
         // Exactly one link is the current page, and it is Transactions.
         $this->assertSame(1, substr_count($page->getContent(), 'aria-current="page"'));
-        $this->assertMatchesRegularExpression('/class="nav-link active"\s+aria-current="page"\s+href="'.preg_quote(route('transactions.index'), '/').'">Transactions/', $page->getContent());
+        $this->assertMatchesRegularExpression('/class="nav-link active"\s+aria-current="page"\s+href="'.preg_quote(route('transactions.index'), '/').'">Transacciones/', $page->getContent());
     }
 
     public function test_not_found_reads_the_same_for_a_missing_record_and_another_companys_record(): void
@@ -94,7 +94,7 @@ class UiShellTest extends TestCase
         $otherCompany = $this->get('/cards/'.$this->card('FF-CEDAR-001')->id)->assertNotFound();
 
         foreach ([$missing, $otherCompany, $this->get('/no-such-page')->assertNotFound()] as $response) {
-            $response->assertSee('Page not found')->assertSee('does not exist, or you do not have access to it')
+            $response->assertSee('Página no encontrada')->assertSee('no existe, o no tienes acceso a él')
                 ->assertDontSee('FF-CEDAR');
         }
     }
@@ -106,9 +106,9 @@ class UiShellTest extends TestCase
         Route::middleware('web')->get('/_test/unavailable', fn () => abort(503));
         Route::middleware('web')->get('/_test/throttled', fn () => abort(429));
 
-        $this->get('/_test/fail')->assertStatus(500)->assertSee('Something went wrong')->assertDontSee('SQLSTATE');
-        $this->get('/_test/unavailable')->assertStatus(503)->assertSee('Temporarily unavailable');
-        $this->get('/_test/throttled')->assertStatus(429)->assertSee('Too many requests');
+        $this->get('/_test/fail')->assertStatus(500)->assertSee('Algo salió mal')->assertDontSee('SQLSTATE');
+        $this->get('/_test/unavailable')->assertStatus(503)->assertSee('No disponible temporalmente');
+        $this->get('/_test/throttled')->assertStatus(429)->assertSee('Demasiadas solicitudes');
 
         // The API keeps its JSON envelope.
         $this->getJson('/api/v1/no-such-endpoint')->assertNotFound()->assertJsonStructure(['error' => ['code', 'message']]);

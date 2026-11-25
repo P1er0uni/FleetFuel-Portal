@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Fleet;
 
+use App\Http\Requests\Concerns\ResolvesFleet;
 use App\Models\Driver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,6 +10,7 @@ use Illuminate\Validation\Rule;
 class StoreDriverRequest extends FormRequest
 {
     use ResolvesCompany;
+    use ResolvesFleet;
 
     public function authorize(): bool
     {
@@ -34,6 +36,7 @@ class StoreDriverRequest extends FormRequest
             // Unique within the company only (UNIQUE (company_id, license_no)).
             'license_no' => ['required', 'string', 'max:50',
                 Rule::unique('drivers', 'license_no')->where('company_id', $this->targetCompanyId())],
+            'fleet_id' => $this->fleetRules($this->targetCompanyId()),
         ];
     }
 
@@ -42,9 +45,9 @@ class StoreDriverRequest extends FormRequest
      */
     public function messages(): array
     {
-        return $this->companyMessages() + [
-            'phone.regex' => 'Use digits, spaces, +, - and brackets only.',
-            'license_no.unique' => 'This company already has a driver with this license number.',
+        return $this->companyMessages() + $this->fleetMessages() + [
+            'phone.regex' => 'Usa solo dígitos, espacios, +, - y paréntesis.',
+            'license_no.unique' => 'Esta empresa ya tiene un conductor con este número de licencia.',
         ];
     }
 }

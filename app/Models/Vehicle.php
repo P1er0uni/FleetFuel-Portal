@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * company_id is set by the server when the vehicle is created and never
  * changes afterwards, so it is deliberately not mass-assignable.
  */
-#[Fillable(['plate_no', 'fuel_type', 'tank_capacity_l', 'odometer_km'])]
+#[Fillable(['plate_no', 'fuel_type', 'tank_capacity_l', 'odometer_km', 'fleet_id'])]
 class Vehicle extends Model
 {
     use BelongsToCompany;
@@ -52,6 +52,12 @@ class Vehicle extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** @return BelongsTo<Fleet, $this> */
+    public function fleet(): BelongsTo
+    {
+        return $this->belongsTo(Fleet::class);
     }
 
     /** @return HasMany<FuelCard, $this> */

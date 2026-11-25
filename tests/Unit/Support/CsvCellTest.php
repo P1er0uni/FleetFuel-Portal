@@ -22,7 +22,7 @@ class CsvCellTest extends TestCase
             'tab' => ["\t=1", "'\t=1"],
             'carriage return' => ["\r=1", "'\r=1"],
             'line feed' => ["\n=1", "'\n=1"],
-            'plain text' => ['Atlas Logistics', 'Atlas Logistics'],
+            'plain text' => ['Logística Atlas', 'Logística Atlas'],
             'sign inside' => ['ATL-101', 'ATL-101'],
             'comma and quote are left to fputcsv' => ['Depot "A", Beirut', 'Depot "A", Beirut'],
             'null' => [null, ''],

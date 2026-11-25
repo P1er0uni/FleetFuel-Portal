@@ -31,17 +31,17 @@ class IntegrationSyncState extends Model
     {
         return match ($this->last_error_code) {
             null => null,
-            'connection_failed' => 'The provider could not be reached (connection error or timeout), even after retries.',
-            'server_error' => 'The provider kept answering with a server error (HTTP 5xx), even after retries.',
-            'rate_limited' => 'The provider rate-limited this server (HTTP 429); the next attempt waits for its retry advice.',
-            'http_error' => 'The provider refused the request (unexpected HTTP status).',
-            'invalid_response', 'provider_error' => 'The provider response was not a successful rate response.',
-            'unexpected_base' => 'The provider response was not based on USD.',
-            'invalid_rate' => 'The provider response had no usable positive LBP rate.',
-            'invalid_timestamp' => 'The provider response had a missing or future observation time.',
-            'stale_observation' => 'The provider observation was already older than 72 hours.',
-            'conflicting_observation' => 'The provider sent a different value for an observation already stored; the stored value was kept.',
-            default => "Sync error: {$this->last_error_code}.",
+            'connection_failed' => 'No se pudo contactar al proveedor (error de conexión o timeout), incluso tras reintentos.',
+            'server_error' => 'El proveedor siguió respondiendo con un error de servidor (HTTP 5xx), incluso tras reintentos.',
+            'rate_limited' => 'El proveedor limitó las solicitudes de este servidor (HTTP 429); el próximo intento espera su indicación de reintento.',
+            'http_error' => 'El proveedor rechazó la solicitud (estado HTTP inesperado).',
+            'invalid_response', 'provider_error' => 'La respuesta del proveedor no fue una respuesta de tasa exitosa.',
+            'unexpected_base' => 'La respuesta del proveedor no estaba basada en USD.',
+            'invalid_rate' => 'La respuesta del proveedor no tenía una tasa LBP positiva utilizable.',
+            'invalid_timestamp' => 'La respuesta del proveedor tenía una hora de observación ausente o futura.',
+            'stale_observation' => 'La observación del proveedor ya tenía más de 72 horas de antigüedad.',
+            'conflicting_observation' => 'El proveedor envió un valor distinto para una observación ya almacenada; se conservó el valor almacenado.',
+            default => "Error de sincronización: {$this->last_error_code}.",
         };
     }
 }

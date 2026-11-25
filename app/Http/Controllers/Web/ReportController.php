@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reports\ReportRequest;
 use App\Models\Company;
+use App\Models\Fleet;
 use App\Models\Product;
 use App\Models\Station;
 use App\Repositories\ReportRepository;
@@ -50,9 +51,10 @@ class ReportController extends Controller
     public function quotaExceptions(ReportRequest $request): View
     {
         $month = BusinessMonth::for(CarbonImmutable::now());
+        $scope = $request->scope();
 
         return $this->page($request, 'reports.quota-exceptions', [
-            'rows' => $this->reports->quotaExceptions($request->scope()->companyId, $month),
+            'rows' => $this->reports->quotaExceptions($scope->companyId, $month, $scope->fleetId),
             'month' => CarbonImmutable::parse($month),
         ]);
     }
@@ -92,13 +94,21 @@ class ReportController extends Controller
     {
         [$first, $last] = $request->businessDates();
         $user = $request->actor();
-        $companyId = $request->scope()->companyId;
+        $scope = $request->scope();
+        $companyId = $scope->companyId;
 
         return view($view, $data + [
             'firstDay' => $first,
             'lastDay' => $last,
             'companies' => $user->isAdmin() ? Company::query()->orderBy('name')->pluck('name', 'id') : null,
             'companyName' => $companyId === null ? null : Company::query()->whereKey($companyId)->value('name'),
+            // The fleet filter (fase 1): the chosen company's fleets, the
+            // manager's own, or every fleet for an admin without a company.
+            'fleets' => Fleet::query()
+                ->when($companyId !== null, fn ($query, $company) => $query->where('company_id', $company))
+                ->orderBy('name')
+                ->pluck('name', 'id'),
+            'fleetName' => $scope->fleetId === null ? null : Fleet::query()->whereKey($scope->fleetId)->value('name'),
         ]);
     }
 

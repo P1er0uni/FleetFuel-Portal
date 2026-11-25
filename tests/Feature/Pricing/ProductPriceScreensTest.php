@@ -57,7 +57,7 @@ class ProductPriceScreensTest extends TestCase
         $this->assertEquals(['product_code' => 'DIESEL', 'price_lbp' => '82000.0000', 'effective_from' => self::FIXTURE_NOW], $audit->new_values);
 
         $this->get(route('products.prices.index', $diesel))->assertOk()
-            ->assertSeeInOrder(['Current price', '82,000.0000', 'LBP per liter']);
+            ->assertSeeInOrder(['Precio vigente', '82,000.0000', 'LBP por litro']);
         // 82000 / 89500 = 0.91620...
         $this->get(route('products.index'))->assertOk()->assertSee('82,000.0000')->assertSee('0.9162');
     }
@@ -79,8 +79,8 @@ class ProductPriceScreensTest extends TestCase
         $this->assertSame('81500.5000', $resolver->priceAt($diesel, CarbonImmutable::parse('2026-10-01T03:00:00Z'))->price_lbp);
 
         $this->get(route('products.prices.index', $diesel))->assertOk()
-            ->assertSee('Scheduled')
-            ->assertSeeInOrder(['Current price', '80,000.0000']);
+            ->assertSee('Programado')
+            ->assertSeeInOrder(['Precio vigente', '80,000.0000']);
     }
 
     /** T10: purchases keep their price snapshot when a new price is published. */
@@ -159,7 +159,7 @@ class ProductPriceScreensTest extends TestCase
             $this->get(route('products.prices.index', $diesel))->assertOk()
                 ->assertSee('80,000.0000')
                 ->assertDontSee('Publish a price')
-                ->assertDontSee('Published by');
+                ->assertDontSee('Publicado por');
             $this->post(route('products.prices.store', $diesel), ['price_lbp' => '1'])->assertForbidden();
         }
 
@@ -183,7 +183,7 @@ class ProductPriceScreensTest extends TestCase
     {
         $this->actingAs($this->admin());
         $this->get(route('products.index'))->assertOk()
-            ->assertSee('fixture (synthetic) rate')
+            ->assertSee('tasa fixture (sintética)')
             ->assertDontSee('Rates By Exchange Rate API');
 
         config(['fleetfuel.exchange_rates.mode' => 'live']);
@@ -193,7 +193,7 @@ class ProductPriceScreensTest extends TestCase
         ]);
 
         $this->get(route('products.index'))->assertOk()
-            ->assertSeeInOrder(['provider rate of', '89,480.00000000'])
+            ->assertSeeInOrder(['tasa proveedor de', '89,480.00000000'])
             ->assertSee('<a href="https://www.exchangerate-api.com">Rates By Exchange Rate API</a>', false);
         $this->get(route('products.prices.index', $this->product(ProductCode::Diesel)))->assertOk()
             ->assertSee('Rates By Exchange Rate API');
@@ -205,7 +205,7 @@ class ProductPriceScreensTest extends TestCase
         $this->assertFalse(ExchangeRate::query()->where('source', RateSource::Provider)->where('expires_at', '>', now())->exists());
 
         $this->actingAs($this->atlasManager())->get(route('products.index'))->assertOk()
-            ->assertSee('No valid USD/LBP rate right now');
+            ->assertSee('Ahora mismo no hay una tasa USD/LBP válida');
     }
 
     public function test_price_pages_never_call_the_provider(): void

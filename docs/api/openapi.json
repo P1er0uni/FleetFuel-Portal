@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FleetFuel Portal API",
-    "version": "0.10.0",
+    "version": "0.12.0",
     "description": "REST API of the FleetFuel Portal, a fictional portfolio project. Every operation is served and checked against real responses by tests/Feature/Api/OpenApiContractTest.php and the per-endpoint API tests; x-abilities (all required), x-any-abilities (at least one required) and x-roles are compared with the route middleware, and x-status records that each operation is implemented. Business details: docs/04-BUSINESS-RULES.md and docs/05-API-CONTRACT.md."
   },
   "servers": [
@@ -2455,6 +2455,9 @@
             "$ref": "#/components/parameters/company_id"
           },
           {
+            "$ref": "#/components/parameters/fleet_id"
+          },
+          {
             "name": "group_by",
             "in": "query",
             "schema": {
@@ -2468,7 +2471,7 @@
             }
           }
         ],
-        "description": "One row per company, vehicle or product (group_by, default company), grouped by ID so equal names never merge; largest liters first, then group_id with null last. Sums of the liters and LBP/USD amounts stored with each purchase: nothing is repriced. Grouping by vehicle uses the vehicle recorded on the purchase, and card-only purchases form one group with group_id null. from/to are Beirut dates [from, to), at most 366 days, default the current Beirut month. An admin may filter by company_id; a manager sees their own company and company_id is refused (422). Unknown parameters are 422. Unpaginated."
+        "description": "One row per company, vehicle or product (group_by, default company), grouped by ID so equal names never merge; largest liters first, then group_id with null last. Sums of the liters and LBP/USD amounts stored with each purchase: nothing is repriced. Grouping by vehicle uses the vehicle recorded on the purchase, and card-only purchases form one group with group_id null. from/to are Beirut dates [from, to), at most 366 days, default the current Beirut month. An admin may filter by company_id; a manager sees their own company and company_id is refused (422). fleet_id keeps only the purchases paid with that fleet's cards, and must belong to the filtered company (admin) or the caller's company (manager). Unknown parameters are 422. Unpaginated."
       }
     },
     "/exports/transactions.csv": {
@@ -2605,6 +2608,1602 @@
         ],
         "description": "Every purchase the caller may see that matches the filters of GET /transactions, without pagination (page and per_page are refused, 422), oldest first by (transacted_at, id). UTF-8 without a byte-order mark, a header row, then the columns transaction_id, external_ref, company, vehicle_plate, station, product_code, liters, unit_price_lbp, amount_lbp, amount_usd, rate_source, transacted_at_utc. Amounts are the stored snapshots. Text cells that start with =, +, - or @ (also after spaces), a tab or a line break get a leading apostrophe so spreadsheets do not run them as formulas. Content-Type text/csv; charset=UTF-8; Content-Disposition attachment."
       }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "summary": "List the caller's notifications",
+        "description": "The authenticated user's own in-app inbox, newest first, optionally filtered by read state and event type.",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:read"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [
+          {"$ref": "#/components/parameters/page"},
+          {"$ref": "#/components/parameters/per_page"},
+          {"name": "status", "in": "query", "required": false, "schema": {"type": "string", "enum": ["read", "unread"]}},
+          {"name": "event_type", "in": "query", "required": false, "schema": {"type": "string", "enum": ["quota_exceeded", "quota_warning", "card_blocked", "anomaly_detected", "delivery_completed", "delivery_cancelled", "fleet_rule_violated"]}}
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated notifications.",
+            "content": {"application/json": {"schema": {
+              "type": "object",
+              "properties": {
+                "data": {"type": "array", "items": {"$ref": "#/components/schemas/Notification"}},
+                "links": {"$ref": "#/components/schemas/Links"},
+                "meta": {"$ref": "#/components/schemas/PageMeta"}
+              },
+              "required": ["data", "links", "meta"],
+              "additionalProperties": false
+            }}}
+          },
+          "400": {"description": "Malformed JSON.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "422": {"description": "Validation failed.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "notificationsUnreadCount",
+        "summary": "The caller's unread notification count",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:read"],
+        "x-roles": ["admin", "company_manager"],
+        "responses": {
+          "200": {"description": "The unread count.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/UnreadCount"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/notifications/mark-all-read": {
+      "post": {
+        "operationId": "notificationsMarkAllRead",
+        "summary": "Mark all of the caller's notifications read",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:write"],
+        "x-roles": ["admin", "company_manager"],
+        "responses": {
+          "200": {"description": "How many were marked read.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/MarkAllReadResult"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "operationId": "notificationsMarkRead",
+        "summary": "Mark one notification read",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:write"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "minimum": 1}}
+        ],
+        "responses": {
+          "200": {"description": "The notification.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/Notification"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "404": {"description": "Notification absent or not the caller's.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/notifications/rules": {
+      "get": {
+        "operationId": "listNotificationRules",
+        "summary": "List notification rules",
+        "description": "Admin: every company, optionally company_id. Manager: own company; company_id is refused.",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:read"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [
+          {"$ref": "#/components/parameters/page"},
+          {"$ref": "#/components/parameters/per_page"},
+          {"$ref": "#/components/parameters/company_id"}
+        ],
+        "responses": {
+          "200": {"description": "Paginated rules.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {
+              "data": {"type": "array", "items": {"$ref": "#/components/schemas/NotificationRule"}},
+              "links": {"$ref": "#/components/schemas/Links"},
+              "meta": {"$ref": "#/components/schemas/PageMeta"}
+            },
+            "required": ["data", "links", "meta"],
+            "additionalProperties": false
+          }}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "422": {"description": "Validation failed.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      },
+      "post": {
+        "operationId": "createNotificationRule",
+        "summary": "Create a notification rule",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:write"],
+        "x-roles": ["admin", "company_manager"],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NotificationRuleCreateRequest"}}}
+        },
+        "responses": {
+          "201": {"description": "Created.", "headers": {"Location": {"schema": {"type": "string"}, "description": "The new rule's URL.", "required": true}}, "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/NotificationRule"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "400": {"description": "Malformed JSON.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "422": {"description": "Validation failed.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/notifications/rules/{id}": {
+      "get": {
+        "operationId": "showNotificationRule",
+        "summary": "One notification rule",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:read"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "minimum": 1}}],
+        "responses": {
+          "200": {"description": "The rule.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/NotificationRule"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "404": {"description": "Rule absent or hidden by tenant scope.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      },
+      "put": {
+        "operationId": "updateNotificationRule",
+        "summary": "Update a notification rule",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:write"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "minimum": 1}}],
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NotificationRuleUpdateRequest"}}}
+        },
+        "responses": {
+          "200": {"description": "The rule.", "content": {"application/json": {"schema": {
+            "type": "object",
+            "properties": {"data": {"$ref": "#/components/schemas/NotificationRule"}},
+            "required": ["data"],
+            "additionalProperties": false
+          }}}},
+          "400": {"description": "Malformed JSON.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "404": {"description": "Rule absent or hidden by tenant scope.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "422": {"description": "Validation failed.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      },
+      "delete": {
+        "operationId": "deleteNotificationRule",
+        "summary": "Delete a notification rule",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["notifications:write"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "minimum": 1}}],
+        "responses": {
+          "204": {"description": "Deleted."},
+          "401": {"description": "Unauthenticated.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "403": {"description": "Role or ability denial.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "404": {"description": "Rule absent or hidden by tenant scope.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+          "429": {"description": "Rate limit exceeded.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}, "headers": {"Retry-After": {"schema": {"type": "integer"}, "description": "Seconds until retry.", "required": true}}},
+          "500": {"description": "Unexpected internal error.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+        }
+      }
+    },
+    "/import/{type}": {
+      "post": {
+        "operationId": "importRecords",
+        "summary": "Bulk import vehicles, drivers or cards",
+        "description": "Uploads a CSV file (multipart, field file) or JSON rows (array). The header must match the template exactly. Each valid row is written; invalid rows are skipped with their error, and nothing rolls back as a whole. dry_run validates without writing. At most 5000 rows and 5 MB. Admin must send company_id; a manager must omit it.",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["fleet:write"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "enum": ["vehicles", "drivers", "cards"]}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {"type": "string", "format": "binary"},
+                  "dry_run": {"type": "boolean"},
+                  "company_id": {"type": "integer", "minimum": 1, "description": "Required for admin; forbidden for manager."}
+                },
+                "required": ["file"],
+                "additionalProperties": false
+              }
+            },
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rows": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5000,
+                    "items": {"type": "object"}
+                  },
+                  "dry_run": {"type": "boolean"},
+                  "company_id": {"type": "integer", "minimum": 1, "description": "Required for admin; forbidden for manager."}
+                },
+                "required": ["rows"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import result with per-row errors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {"data": {"$ref": "#/components/schemas/ImportResult"}},
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "404": {
+            "description": "Unknown import type.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "422": {
+            "description": "Validation failed, wrong header, or over the row or size limit.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}},
+            "headers": {
+              "Retry-After": {
+                "schema": {"type": "integer"},
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          }
+        }
+      }
+    },
+    "/import/templates/{type}": {
+      "get": {
+        "operationId": "importTemplate",
+        "summary": "Download a CSV import template",
+        "description": "Returns the template header plus one example row for the given type.",
+        "x-status": "implemented",
+        "x-milestone": "fase-2",
+        "x-abilities": ["fleet:read"],
+        "x-roles": ["admin", "company_manager"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string", "enum": ["vehicles", "drivers", "cards"]}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The CSV template.",
+            "content": {
+              "text/csv": {
+                "schema": {"type": "string", "format": "binary"}
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "403": {
+            "description": "Role or ability denial.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "404": {
+            "description": "Unknown import type.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}},
+            "headers": {
+              "Retry-After": {
+                "schema": {"type": "integer"},
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}
+          }
+        }
+      }
+    },
+    "/fleets": {
+      "get": {
+        "operationId": "listFleets",
+        "summary": "List tenant-scoped fleets",
+        "description": "Admin: every company, optionally company_id. Manager: own company; company_id is refused (422). Ordered by name.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Fleet"
+                      }
+                    },
+                    "links": {
+                      "$ref": "#/components/schemas/Links"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "links",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/per_page"
+          },
+          {
+            "$ref": "#/components/parameters/company_id"
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createFleet",
+        "summary": "Create fleet in allowed company",
+        "description": "Admin must send company_id (an active company); a manager must omit it. The name is unique within the company. Quotas are optional decimal strings; null means unlimited. An inactive company is 403 company_inactive.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:write"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The new fleet's URL.",
+                "required": true
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Fleet"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetCreateRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleets/{id}": {
+      "get": {
+        "operationId": "showFleet",
+        "summary": "Fleet detail with rules and current usage",
+        "description": "The fleet with its rules and the current Beirut month's aggregated usage. Another company's fleet is 404.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FleetDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "put": {
+        "operationId": "updateFleet",
+        "summary": "Update fleet name, description and quotas",
+        "description": "The company never changes: sending company_id is 422. Quotas are optional decimal strings; null means unlimited. An inactive company is 403 company_inactive.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:write"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Fleet"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FleetUpdateRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteFleet",
+        "summary": "Delete fleet; members keep working without it",
+        "description": "Deletes the fleet row; its vehicles, drivers and cards keep working with fleet_id null (SET NULL). An inactive company is 403 company_inactive.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:write"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted; empty body."
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/fleets/{id}/usage": {
+      "get": {
+        "operationId": "fleetUsage",
+        "summary": "Current month's aggregated usage against the fleet's quotas",
+        "description": "The fleet's cards' consumption for the current Beirut month, with the quota percentages. An exceeded quota is a signal only; it never blocks a purchase.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FleetUsage"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/fleets/{id}/vehicles": {
+      "get": {
+        "operationId": "fleetVehicles",
+        "summary": "List the fleet's vehicles",
+        "description": "The fleet's vehicles, ordered by plate, paginated.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Vehicle"
+                      }
+                    },
+                    "links": {
+                      "$ref": "#/components/schemas/Links"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "links",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/per_page"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/fleets/{id}/drivers": {
+      "get": {
+        "operationId": "fleetDrivers",
+        "summary": "List the fleet's drivers",
+        "description": "The fleet's drivers, ordered by name, paginated.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Driver"
+                      }
+                    },
+                    "links": {
+                      "$ref": "#/components/schemas/Links"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "links",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/per_page"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
+    },
+    "/fleets/{id}/cards": {
+      "get": {
+        "operationId": "fleetCards",
+        "summary": "List the fleet's fuel cards",
+        "description": "The fleet's fuel cards, ordered by card number, paginated.",
+        "x-status": "implemented",
+        "x-milestone": "fase-1-flotas",
+        "x-abilities": [
+          "fleet:read"
+        ],
+        "x-roles": [
+          "admin",
+          "company_manager"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Card"
+                      }
+                    },
+                    "links": {
+                      "$ref": "#/components/schemas/Links"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PageMeta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "links",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked token or invalid credentials.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, ability, active-state or business-rule denial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource absent or hidden by tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed or no eligible product price.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until retry.",
+                "required": true
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected internal error; no stack trace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/per_page"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2656,6 +4255,15 @@
         "name": "company_id",
         "in": "query",
         "description": "Admin only; all other callers must omit.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "fleet_id": {
+        "name": "fleet_id",
+        "in": "query",
+        "description": "Only rows paid with this fleet's cards. Must belong to the filtered company (admin) or the caller's company (manager).",
         "schema": {
           "type": "integer",
           "minimum": 1
@@ -3758,6 +5366,428 @@
           "liters",
           "amount_lbp",
           "amount_usd"
+        ],
+        "additionalProperties": false
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "minimum": 1},
+          "company_id": {"type": "integer", "minimum": 1},
+          "event_type": {"type": "string", "enum": ["quota_exceeded", "quota_warning", "card_blocked", "anomaly_detected", "delivery_completed", "delivery_cancelled", "fleet_rule_violated"]},
+          "title": {"type": "string"},
+          "message": {"type": "string"},
+          "payload": {"type": "object"},
+          "read_at": {"type": ["string", "null"], "format": "date-time"},
+          "created_at": {"type": ["string", "null"], "format": "date-time"}
+        },
+        "required": ["id", "company_id", "event_type", "title", "message", "payload", "read_at", "created_at"],
+        "additionalProperties": false
+      },
+      "NotificationRule": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer", "minimum": 1},
+          "company_id": {"type": "integer", "minimum": 1},
+          "fleet_id": {"type": ["integer", "null"], "minimum": 1},
+          "event_type": {"type": "string", "enum": ["quota_exceeded", "quota_warning", "card_blocked", "anomaly_detected", "delivery_completed", "delivery_cancelled", "fleet_rule_violated"]},
+          "channel": {"type": "string", "enum": ["in_app", "email", "log"]},
+          "threshold_value": {"type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$"},
+          "threshold_operator": {"type": ["string", "null"], "enum": ["gte", "lte", "eq", null]},
+          "active": {"type": "boolean"}
+        },
+        "required": ["id", "company_id", "fleet_id", "event_type", "channel", "threshold_value", "threshold_operator", "active"],
+        "additionalProperties": false
+      },
+      "NotificationRuleCreateRequest": {
+        "type": "object",
+        "properties": {
+          "company_id": {"type": "integer", "minimum": 1, "description": "Required for admin; forbidden for manager."},
+          "fleet_id": {"type": ["integer", "null"], "minimum": 1},
+          "event_type": {"type": "string", "enum": ["quota_exceeded", "quota_warning", "card_blocked", "anomaly_detected", "delivery_completed", "delivery_cancelled", "fleet_rule_violated"]},
+          "channel": {"type": "string", "enum": ["in_app", "email", "log"]},
+          "threshold_value": {"type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$"},
+          "threshold_operator": {"type": ["string", "null"], "enum": ["gte", "lte", "eq", null]},
+          "active": {"type": "boolean"}
+        },
+        "required": ["event_type", "channel"],
+        "additionalProperties": false
+      },
+      "NotificationRuleUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "fleet_id": {"type": ["integer", "null"], "minimum": 1},
+          "event_type": {"type": "string", "enum": ["quota_exceeded", "quota_warning", "card_blocked", "anomaly_detected", "delivery_completed", "delivery_cancelled", "fleet_rule_violated"]},
+          "channel": {"type": "string", "enum": ["in_app", "email", "log"]},
+          "threshold_value": {"type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$"},
+          "threshold_operator": {"type": ["string", "null"], "enum": ["gte", "lte", "eq", null]}
+        },
+        "required": ["event_type", "channel"],
+        "additionalProperties": false
+      },
+      "UnreadCount": {
+        "type": "object",
+        "properties": {"unread_count": {"type": "integer", "minimum": 0}},
+        "required": ["unread_count"],
+        "additionalProperties": false
+      },
+      "MarkAllReadResult": {
+        "type": "object",
+        "properties": {"marked_read": {"type": "integer", "minimum": 0}},
+        "required": ["marked_read"],
+        "additionalProperties": false
+      },
+      "ImportResult": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["vehicles", "drivers", "cards"]},
+          "dry_run": {"type": "boolean"},
+          "total_rows": {"type": "integer", "minimum": 0},
+          "successful": {"type": "integer", "minimum": 0},
+          "failed": {"type": "integer", "minimum": 0},
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {"type": "integer", "minimum": 1},
+                "field": {"type": "string"},
+                "message": {"type": "string"}
+              },
+              "required": ["row", "field", "message"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["type", "dry_run", "total_rows", "successful", "failed", "errors"],
+        "additionalProperties": false
+      },
+      "Fleet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "company_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "monthly_quota_liters": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; null means unlimited."
+          },
+          "monthly_quota_amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "USD, plain decimal string, at most 2 places; null means unlimited."
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "name",
+          "description",
+          "status",
+          "monthly_quota_liters",
+          "monthly_quota_amount"
+        ],
+        "additionalProperties": false
+      },
+      "FleetDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "company_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive"
+            ]
+          },
+          "monthly_quota_liters": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; null means unlimited."
+          },
+          "monthly_quota_amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "USD, plain decimal string, at most 2 places; null means unlimited."
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FleetRule"
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/FleetUsage"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "name",
+          "description",
+          "status",
+          "monthly_quota_liters",
+          "monthly_quota_amount",
+          "rules",
+          "usage"
+        ],
+        "additionalProperties": false
+      },
+      "FleetRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rule_type": {
+            "type": "string",
+            "enum": [
+              "allowed_products",
+              "allowed_stations",
+              "max_liters_per_transaction",
+              "max_transactions_per_day"
+            ]
+          },
+          "rule_value": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                },
+                "required": [
+                  "ids"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "string",
+                    "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            ],
+            "description": "List rules store {\"ids\": [...]}; numeric rules store {\"value\": \"...\"}."
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "rule_type",
+          "rule_value",
+          "active"
+        ],
+        "additionalProperties": false
+      },
+      "FleetUsage": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "description": "First day of the Beirut calendar month being measured."
+          },
+          "used_liters": {
+            "type": "string",
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; response values use fixed scale."
+          },
+          "used_usd": {
+            "type": "string",
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "Plain decimal string, at most 2 places; response values use fixed scale."
+          },
+          "quota_liters": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; null means unlimited."
+          },
+          "quota_usd": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "USD, plain decimal string, at most 2 places; null means unlimited."
+          },
+          "liters_percent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9])?$",
+            "description": "Percent of the liter quota, one decimal; null when the fleet sets no quota."
+          },
+          "amount_percent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9])?$",
+            "description": "Percent of the USD quota, one decimal; null when the fleet sets no quota."
+          },
+          "exceeded": {
+            "type": "boolean",
+            "description": "True when the used liters or USD pass either quota; a signal only, it never blocks a purchase."
+          }
+        },
+        "required": [
+          "month",
+          "used_liters",
+          "used_usd",
+          "quota_liters",
+          "quota_usd",
+          "liters_percent",
+          "amount_percent",
+          "exceeded"
+        ],
+        "additionalProperties": false
+      },
+      "FleetCreateRequest": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Required for admin; forbidden for manager."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "monthly_quota_liters": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; null or omitted means unlimited."
+          },
+          "monthly_quota_amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "USD, plain decimal string, at most 2 places; null or omitted means unlimited."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "FleetUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255
+          },
+          "monthly_quota_liters": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,3})?$",
+            "description": "Plain decimal string, at most 3 places; null or omitted means unlimited."
+          },
+          "monthly_quota_amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$",
+            "description": "USD, plain decimal string, at most 2 places; null or omitted means unlimited."
+          }
+        },
+        "required": [
+          "name"
         ],
         "additionalProperties": false
       }

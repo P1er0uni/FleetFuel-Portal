@@ -50,12 +50,12 @@ class TransitionDeliveryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'scheduled_start_at.prohibited' => 'A delivery window is only sent when scheduling.',
-            'scheduled_end_at.prohibited' => 'A delivery window is only sent when scheduling.',
-            'assigned_truck.prohibited' => 'A truck is only sent when scheduling.',
-            'reason.prohibited' => 'A reason is only sent when cancelling.',
-            'reason.required' => 'Give a reason for the cancellation.',
-            'assigned_truck.required' => 'Assign a truck.',
+            'scheduled_start_at.prohibited' => 'Una ventana de entrega solo se envía al programar.',
+            'scheduled_end_at.prohibited' => 'Una ventana de entrega solo se envía al programar.',
+            'assigned_truck.prohibited' => 'Un camión solo se envía al programar.',
+            'reason.prohibited' => 'Un motivo solo se envía al cancelar.',
+            'reason.required' => 'Indica un motivo para la cancelación.',
+            'assigned_truck.required' => 'Asigna un camión.',
         ];
     }
 

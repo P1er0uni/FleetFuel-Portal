@@ -49,13 +49,13 @@ class ProductController extends Controller
     {
         $reference->updateProduct($product, (string) $request->validated('name'), $this->actor($request));
 
-        return redirect()->route('products.index')->with('status', "Product {$product->code} saved.");
+        return redirect()->route('products.index')->with('status', "Producto {$product->code} guardado.");
     }
 
     public function updateActive(SetActiveRequest $request, Product $product, ReferenceDataService $reference): RedirectResponse
     {
         $product = $reference->setProductActive($product, $request->boolean('is_active'), $this->actor($request));
 
-        return back()->with('status', "Product {$product->code} is now ".($product->is_active ? 'active.' : 'inactive.'));
+        return back()->with('status', "El producto {$product->code} ahora está ".($product->is_active ? 'activo.' : 'inactivo.'));
     }
 }

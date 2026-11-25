@@ -11,27 +11,27 @@ class DeactivateUser extends Command
 {
     protected $signature = 'users:deactivate {email : Email of the account to disable}';
 
-    protected $description = 'Disable an account: refuse sign-in, revoke its API tokens and end its sessions';
+    protected $description = 'Desactiva una cuenta: rechaza el inicio de sesión, revoca sus tokens de API y cierra sus sesiones';
 
     public function handle(UserAccountService $accounts): int
     {
         $user = User::query()->where('email', Str::lower(trim((string) $this->argument('email'))))->first();
 
         if ($user === null) {
-            $this->error('No account has that email.');
+            $this->error('Ninguna cuenta tiene ese correo.');
 
             return self::FAILURE;
         }
 
         if (! $user->is_active) {
-            $this->info('That account is already disabled; nothing changed.');
+            $this->info('Esa cuenta ya está desactivada; no cambió nada.');
 
             return self::SUCCESS;
         }
 
         $result = $accounts->deactivate($user);
 
-        $this->info("Disabled {$user->email}: revoked {$result['tokens']} API token(s) and ended {$result['sessions']} session(s).");
+        $this->info("Se desactivó {$user->email}: se revocaron {$result['tokens']} token(s) de API y se cerraron {$result['sessions']} sesión(es).");
 
         return self::SUCCESS;
     }

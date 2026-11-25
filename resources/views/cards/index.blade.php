@@ -5,42 +5,42 @@
 @use('App\Support\Redact')
 @use('Carbon\CarbonImmutable')
 
-@section('title', 'Fuel cards')
+@section('title', 'Tarjetas de combustible')
 
 @section('content')
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h1 class="h3 mb-0">Fuel cards</h1>
+        <h1 class="h3 mb-0">Tarjetas de combustible</h1>
         @can('create', App\Models\FuelCard::class)
-            <a class="btn btn-primary" href="{{ route('cards.create') }}">Issue card</a>
+            <a class="btn btn-primary" href="{{ route('cards.create') }}">Emitir tarjeta</a>
         @endcan
     </div>
 
     @include('partials.list-filters', [
-        'searchLabel' => 'Card number (or part of it)',
-        'statusOptions' => ['active' => 'Active', 'blocked' => 'Blocked', 'archived' => 'Archived'],
+        'searchLabel' => 'Número de tarjeta (o parte de él)',
+        'statusOptions' => ['active' => 'Activa', 'blocked' => 'Bloqueada', 'archived' => 'Archivada'],
         'companies' => $companies,
     ])
 
     <p class="small text-body-secondary">
-        Usage for {{ CarbonImmutable::parse($month)->format('F Y') }} (Beirut time) against the card's current monthly limits.
+        Consumo de {{ CarbonImmutable::parse($month)->locale('es')->translatedFormat('F Y') }} (hora de Beirut) contra los límites mensuales vigentes de cada tarjeta.
     </p>
 
     @if ($cards->isEmpty())
-        <p class="text-body-secondary">No cards match these filters.</p>
+        <p class="text-body-secondary">Ninguna tarjeta coincide con estos filtros.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Card</th>
+                        <th scope="col">Tarjeta</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">Vehicle / driver</th>
-                        <th scope="col">Product</th>
-                        <th scope="col">Status</th>
-                        <th scope="col" class="text-end">Liters used / limit</th>
-                        <th scope="col" class="text-end">USD used / limit</th>
+                        <th scope="col">Vehículo / conductor</th>
+                        <th scope="col">Producto</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col" class="text-end">Litros usados / límite</th>
+                        <th scope="col" class="text-end">USD usados / límite</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -52,18 +52,18 @@
                                 <td>{{ $card->company->name }}</td>
                             @endif
                             <td>
-                                {{ $card->vehicle?->plate_no ?? 'No vehicle' }}
-                                <span class="d-block small text-body-secondary">{{ $card->driver?->name ?? 'No driver' }}</span>
+                                {{ $card->vehicle?->plate_no ?? 'Sin vehículo' }}
+                                <span class="d-block small text-body-secondary">{{ $card->driver?->name ?? 'Sin conductor' }}</span>
                             </td>
-                            <td>{{ $card->allowedProduct?->name ?? 'Any' }}</td>
+                            <td>{{ $card->allowedProduct?->name ?? 'Cualquiera' }}</td>
                             <td>
                                 @include('partials.card-status-badge', ['status' => $card->status])
                                 @if ($balance->isOverQuota())
-                                    <span class="badge text-bg-warning">Over quota</span>
+                                    <span class="badge text-bg-warning">Sobre cuota</span>
                                 @endif
                             </td>
-                            <td class="text-end text-nowrap">{{ Display::decimal($balance->usedL) }} / {{ $balance->limitL === null ? 'no limit' : Display::decimal($balance->limitL) }}</td>
-                            <td class="text-end text-nowrap">{{ Display::decimal($balance->usedUsd) }} / {{ $balance->limitUsd === null ? 'no limit' : Display::decimal($balance->limitUsd) }}</td>
+                            <td class="text-end text-nowrap">{{ Display::decimal($balance->usedL) }} / {{ $balance->limitL === null ? 'sin límite' : Display::decimal($balance->limitL) }}</td>
+                            <td class="text-end text-nowrap">{{ Display::decimal($balance->usedUsd) }} / {{ $balance->limitUsd === null ? 'sin límite' : Display::decimal($balance->limitUsd) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

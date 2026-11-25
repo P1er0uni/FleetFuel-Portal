@@ -28,6 +28,9 @@ class ProductionBootTest extends TestCase
 
     private string $cacheDirectory;
 
+    /** The same directory relative to the project root: APP_*_CACHE values are joined onto the base path, which on Windows would double an absolute C:\ path. */
+    private string $cacheRelative;
+
     /** @var array<string, string> */
     private array $environment = [];
 
@@ -43,7 +46,9 @@ class ProductionBootTest extends TestCase
         $this->assertFileDoesNotExist(public_path('hot'), 'A Vite dev server is running (public/hot); stop it to test the built assets.');
 
         $this->useCommittedDatabase(self::DATABASE);
-        $this->cacheDirectory = storage_path('framework/testing/production-'.bin2hex(random_bytes(4)));
+        $hash = bin2hex(random_bytes(4));
+        $this->cacheDirectory = storage_path("framework/testing/production-{$hash}");
+        $this->cacheRelative = "storage/framework/testing/production-{$hash}";
         File::ensureDirectoryExists($this->cacheDirectory.'/views');
         $this->environment = $this->productionEnvironment();
     }
@@ -104,7 +109,7 @@ class ProductionBootTest extends TestCase
 
         [$status, $missing] = $this->fetch('/no-such-page');
         $this->assertSame(404, $status);
-        $this->assertStringContainsString('Page not found', $missing);
+        $this->assertStringContainsString('Página no encontrada', $missing);
 
         [$status, $api] = $this->fetch('/api/v1/stations');
         $this->assertSame(401, $status);
@@ -121,7 +126,7 @@ class ProductionBootTest extends TestCase
         }
 
         $this->assertSame(500, $status);
-        $this->assertStringContainsString('Something went wrong', $error);
+        $this->assertStringContainsString('Algo salió mal', $error);
         foreach (['SQLSTATE', 'sessions', 'Stack trace', 'vendor/laravel', 'Whoops'] as $detail) {
             $this->assertStringNotContainsString($detail, $error);
         }
@@ -144,9 +149,9 @@ class ProductionBootTest extends TestCase
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
             'APP_KEY' => 'base64:'.base64_encode(random_bytes(32)),
-            'APP_CONFIG_CACHE' => $this->cacheDirectory.'/config.php',
-            'APP_ROUTES_CACHE' => $this->cacheDirectory.'/routes.php',
-            'APP_EVENTS_CACHE' => $this->cacheDirectory.'/events.php',
+            'APP_CONFIG_CACHE' => $this->cacheRelative.'/config.php',
+            'APP_ROUTES_CACHE' => $this->cacheRelative.'/routes.php',
+            'APP_EVENTS_CACHE' => $this->cacheRelative.'/events.php',
             'VIEW_COMPILED_PATH' => $this->cacheDirectory.'/views',
             'DB_CONNECTION' => 'mysql',
             'DB_URL' => '',

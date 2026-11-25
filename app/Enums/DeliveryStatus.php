@@ -20,6 +20,18 @@ enum DeliveryStatus: string
         return str_replace('_', ' ', $this->value);
     }
 
+    /** Spanish label for the web screens ("en camino"). The API keeps label(). */
+    public function displayLabel(): string
+    {
+        return match ($this) {
+            self::Pending => 'pendiente',
+            self::Scheduled => 'programada',
+            self::OutForDelivery => 'en camino',
+            self::Delivered => 'entregada',
+            self::Cancelled => 'cancelada',
+        };
+    }
+
     public function canTransitionTo(self $next): bool
     {
         return in_array($next, $this->nextStatuses(), true);

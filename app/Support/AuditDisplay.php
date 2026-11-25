@@ -19,17 +19,55 @@ final class AuditDisplay
 
     /** Morph-map alias => [label, route of its page or null]. */
     private const ENTITIES = [
-        'company' => ['Company', 'companies.edit'],
-        'station' => ['Station', 'stations.edit'],
-        'product' => ['Product', 'products.edit'],
-        'product_price' => ['Product price', null],
-        'exchange_rate' => ['Exchange rate', null],
-        'vehicle' => ['Vehicle', 'vehicles.edit'],
-        'driver' => ['Driver', 'drivers.edit'],
-        'fuel_card' => ['Fuel card', 'cards.show'],
-        'fuel_transaction' => ['Purchase', 'transactions.show'],
-        'delivery_order' => ['Delivery order', 'deliveries.show'],
-        'user' => ['User account', null],
+        'company' => ['Empresa', 'companies.edit'],
+        'station' => ['Estación', 'stations.edit'],
+        'product' => ['Producto', 'products.edit'],
+        'product_price' => ['Precio de producto', null],
+        'exchange_rate' => ['Tasa de cambio', null],
+        'vehicle' => ['Vehículo', 'vehicles.edit'],
+        'driver' => ['Conductor', 'drivers.edit'],
+        'fuel_card' => ['Tarjeta de combustible', 'cards.show'],
+        'fuel_transaction' => ['Compra', 'transactions.show'],
+        'delivery_order' => ['Orden de entrega', 'deliveries.show'],
+        'fleet' => ['Flota', 'fleets.show'],
+        'fleet_rule' => ['Regla de flota', null],
+        'notification_rule' => ['Regla de notificación', 'notifications.rules.edit'],
+        'user' => ['Cuenta de usuario', null],
+    ];
+
+    /** Audit action codes => Spanish label (fallback: readable code). */
+    private const ACTIONS = [
+        'card.created' => 'Tarjeta creada',
+        'card.assignment_changed' => 'Asignación de tarjeta cambiada',
+        'card.limits_changed' => 'Límites de tarjeta cambiados',
+        'card.status_changed' => 'Estado de tarjeta cambiado',
+        'delivery_order.status_changed' => 'Estado de orden de entrega cambiado',
+        'exchange_rate.override_created' => 'Ajuste de tasa de cambio creado',
+        'vehicle.activated' => 'Vehículo activado',
+        'vehicle.deactivated' => 'Vehículo desactivado',
+        'driver.activated' => 'Conductor activado',
+        'driver.deactivated' => 'Conductor desactivado',
+        'product_price.published' => 'Precio de producto publicado',
+        'company.activated' => 'Empresa activada',
+        'company.deactivated' => 'Empresa desactivada',
+        'station.activated' => 'Estación activada',
+        'station.deactivated' => 'Estación desactivada',
+        'product.activated' => 'Producto activado',
+        'product.deactivated' => 'Producto desactivado',
+        'user.created' => 'Usuario creado',
+        'user.activated' => 'Usuario activado',
+        'user.deactivated' => 'Usuario desactivado',
+        'fleet.created' => 'Flota creada',
+        'fleet.updated' => 'Flota actualizada',
+        'fleet.status_changed' => 'Estado de flota cambiado',
+        'fleet.deleted' => 'Flota eliminada',
+        'fleet.assignment_changed' => 'Asignación de flota cambiada',
+        'fleet.rules_changed' => 'Reglas de flota cambiadas',
+        'import.completed' => 'Importación masiva completada',
+        'notification.sent' => 'Notificación registrada',
+        'notification_rule.created' => 'Regla de notificación creada',
+        'notification_rule.updated' => 'Regla de notificación actualizada',
+        'notification_rule.deleted' => 'Regla de notificación eliminada',
     ];
 
     /**
@@ -61,22 +99,22 @@ final class AuditDisplay
     public static function value(string $field, mixed $value): string
     {
         if (preg_match(self::SECRET_FIELD, $field) === 1) {
-            return '[redacted]';
+            return '[redactado]';
         }
 
         return match (true) {
-            $value === null => 'none',
-            is_bool($value) => $value ? 'yes' : 'no',
+            $value === null => 'ninguno',
+            is_bool($value) => $value ? 'sí' : 'no',
             is_string($value) && str_ends_with($field, 'card_no') => Redact::cardNumber($value),
             is_scalar($value) => (string) $value,
             default => (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         };
     }
 
-    /** "card.limits_changed" becomes "Card limits changed". */
+    /** "card.limits_changed" becomes "Límites de tarjeta cambiados". */
     public static function action(string $action): string
     {
-        return Str::ucfirst(str_replace(['.', '_'], ' ', $action));
+        return self::ACTIONS[$action] ?? Str::ucfirst(str_replace(['.', '_'], ' ', $action));
     }
 
     public static function entityLabel(string $alias): string

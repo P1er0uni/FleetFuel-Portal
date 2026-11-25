@@ -3,31 +3,31 @@
 @use('App\Support\Display')
 @use('App\Support\Redact')
 
-@section('title', 'Quota exceptions')
+@section('title', 'Excepciones de cuota')
 
 @section('content')
-    @include('reports._header', ['title' => 'Quota exceptions, '.$month->format('F Y'), 'datesApply' => false])
+    @include('reports._header', ['title' => 'Excepciones de cuota, '.$month->locale('es')->translatedFormat('F Y'), 'datesApply' => false])
 
     <p class="small">
-        Blocked cards, and cards that have used all of a monthly limit or more, this Beirut month.
-        Usage comes from the monthly counter; limits are the cards' current ones. Archived cards are not listed, and declined purchases never count as usage.
+        Tarjetas bloqueadas, y tarjetas que han usado todo un límite mensual o más, en este mes de Beirut.
+        El consumo proviene del contador mensual; los límites son los vigentes de cada tarjeta. Las tarjetas archivadas no se listan, y las compras rechazadas nunca cuentan como consumo.
     </p>
 
     @if ($rows === [])
-        <p class="text-body-secondary">No card needs attention this month.</p>
+        <p class="text-body-secondary">Ninguna tarjeta requiere atención este mes.</p>
     @else
         <div class="table-responsive">
             <table class="table table-sm align-middle bg-body">
                 <thead>
                     <tr>
-                        <th scope="col">Card</th>
+                        <th scope="col">Tarjeta</th>
                         @if ($companies !== null)
-                            <th scope="col">Company</th>
+                            <th scope="col">Empresa</th>
                         @endif
-                        <th scope="col">Vehicle</th>
-                        <th scope="col" class="text-end">Liters used / limit</th>
-                        <th scope="col" class="text-end">USD used / limit</th>
-                        <th scope="col">Why</th>
+                        <th scope="col">Vehículo</th>
+                        <th scope="col" class="text-end">Litros usados / límite</th>
+                        <th scope="col" class="text-end">USD usados / límite</th>
+                        <th scope="col">Motivo</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,9 +37,9 @@
                             @if ($companies !== null)
                                 <td>{{ $row['company'] }}</td>
                             @endif
-                            <td>{{ $row['vehicle_plate'] ?? 'No vehicle' }}</td>
-                            <td class="text-end text-nowrap">{{ Display::decimal($row['used_l']) }} / {{ $row['monthly_limit_l'] === null ? 'no limit' : Display::decimal($row['monthly_limit_l']) }}</td>
-                            <td class="text-end text-nowrap">{{ Display::decimal($row['used_usd']) }} / {{ $row['monthly_limit_usd'] === null ? 'no limit' : Display::decimal($row['monthly_limit_usd']) }}</td>
+                            <td>{{ $row['vehicle_plate'] ?? 'Sin vehículo' }}</td>
+                            <td class="text-end text-nowrap">{{ Display::decimal($row['used_l']) }} / {{ $row['monthly_limit_l'] === null ? 'sin límite' : Display::decimal($row['monthly_limit_l']) }}</td>
+                            <td class="text-end text-nowrap">{{ Display::decimal($row['used_usd']) }} / {{ $row['monthly_limit_usd'] === null ? 'sin límite' : Display::decimal($row['monthly_limit_usd']) }}</td>
                             <td>
                                 <ul class="list-unstyled small mb-0">
                                     @foreach ($row['reasons'] as $reason)

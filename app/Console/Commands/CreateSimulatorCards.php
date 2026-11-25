@@ -21,11 +21,11 @@ use Illuminate\Support\Facades\DB;
 class CreateSimulatorCards extends Command
 {
     protected $signature = 'demo:simulator-cards
-        {--tag= : 1 to 8 letters or digits used in the card numbers (default: random)}';
+        {--tag= : 1 a 8 letras o dígitos usados en los números de tarjeta (por defecto: aleatorio)}';
 
-    protected $description = 'Add three fresh POS simulator cards to the demo company (local demo only; nothing else changes)';
+    protected $description = 'Agrega tres tarjetas nuevas para el simulador POS a la empresa demo (solo demo local; no cambia nada más)';
 
-    private const COMPANY = 'Atlas Logistics';
+    private const COMPANY = 'Logística Atlas';
 
     private const TAG_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -39,14 +39,14 @@ class CreateSimulatorCards extends Command
     public function handle(AuditService $audit): int
     {
         if (! $this->laravel->environment(['local', 'testing']) || ! config('fleetfuel.demo.enabled')) {
-            $this->error('Simulator cards are demo data: they can only be added in the local or testing environment with DEMO_MODE on.');
+            $this->error('Las tarjetas del simulador son datos demo: solo pueden agregarse en el entorno local o de testing con DEMO_MODE activado.');
 
             return self::FAILURE;
         }
 
         $tag = $this->tag();
         if ($tag === null) {
-            $this->error('--tag must be 1 to 8 letters or digits.');
+            $this->error('--tag debe tener de 1 a 8 letras o dígitos.');
 
             return self::FAILURE;
         }
@@ -54,14 +54,14 @@ class CreateSimulatorCards extends Command
         $company = Company::query()->where('name', self::COMPANY)->where('status', CompanyStatus::Active->value)->first();
         $diesel = Product::query()->where('code', 'DIESEL')->where('is_active', true)->first();
         if ($company === null || $diesel === null) {
-            $this->error('The demo company "'.self::COMPANY.'" or the DIESEL product is missing or inactive. Seed the demo first (make setup).');
+            $this->error('La empresa demo "'.self::COMPANY.'" o el producto DIESEL no existe o está inactivo. Siembra la demo primero (make setup).');
 
             return self::FAILURE;
         }
 
         $numbers = array_map(fn (array $card): string => "FF-SIM-{$tag}-{$card[0]}", self::CARDS);
         if (FuelCard::query()->whereIn('card_no', $numbers)->exists()) {
-            $this->error("Cards with the tag {$tag} already exist; choose another --tag. Nothing was changed.");
+            $this->error("Ya existen tarjetas con la etiqueta {$tag}; elige otro --tag. No se cambió nada.");
 
             return self::FAILURE;
         }
@@ -91,15 +91,15 @@ class CreateSimulatorCards extends Command
             }
         });
 
-        $this->info('Added three fresh simulator cards to '.self::COMPANY." (tag {$tag}), diesel only:");
-        $this->table(['Card', 'Status', 'Monthly limits'], array_map(
+        $this->info('Se agregaron tres tarjetas nuevas para el simulador a '.self::COMPANY." (etiqueta {$tag}), solo diésel:");
+        $this->table(['Tarjeta', 'Estado', 'Límites mensuales'], array_map(
             fn (array $card, string $number): array => [$number, $card[3]->value, "{$card[1]} L / {$card[2]} USD"],
             self::CARDS,
             $numbers,
         ));
-        $this->line('Point the simulator at them:');
+        $this->line('Apunta el simulador a ellas:');
         $this->line('  export '.implode(' ', array_map(fn (array $card, string $number): string => "{$card[4]}={$number}", self::CARDS, $numbers)));
-        $this->line('Nothing else was changed.');
+        $this->line('No se cambió nada más.');
 
         return self::SUCCESS;
     }

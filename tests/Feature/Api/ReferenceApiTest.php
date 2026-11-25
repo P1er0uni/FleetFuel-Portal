@@ -41,13 +41,13 @@ class ReferenceApiTest extends TestCase
         foreach ([$this->admin(), $this->atlasManager(), $this->operator()] as $user) {
             $response = $this->stations('', $this->apiToken($user))->assertOk();
 
-            // South Demo Station is inactive: hidden even from the admin here.
-            $this->assertSame(['Harbor Demo Station', 'North Demo Station'], $response->json('data.*.name'));
+            // Estación Demo Sur is inactive: hidden even from the admin here.
+            $this->assertSame(['Estación Demo Norte', 'Estación Demo Puerto'], $response->json('data.*.name'));
             $response->assertJsonPath('data.0', [
-                'id' => $this->station('Harbor Demo Station')->id,
-                'name' => 'Harbor Demo Station',
-                'district' => 'Beirut',
-                'governorate' => 'Beirut',
+                'id' => $this->station('Estación Demo Norte')->id,
+                'name' => 'Estación Demo Norte',
+                'district' => 'Trípoli',
+                'governorate' => 'North',
                 'is_active' => true,
             ])->assertJsonPath('meta.total', 2);
         }
@@ -57,11 +57,11 @@ class ReferenceApiTest extends TestCase
     {
         $token = $this->apiToken($this->operator());
 
-        $this->assertSame(['North Demo Station'], $this->stations('?governorate=North', $token)->assertOk()->json('data.*.name'));
+        $this->assertSame(['Estación Demo Norte'], $this->stations('?governorate=North', $token)->assertOk()->json('data.*.name'));
         $this->assertSame([], $this->stations('?governorate=South', $token)->assertOk()->json('data'));
 
         $second = $this->stations('?per_page=1&page=2', $token)->assertOk();
-        $this->assertSame(['North Demo Station'], $second->json('data.*.name'));
+        $this->assertSame(['Estación Demo Puerto'], $second->json('data.*.name'));
         $second->assertJsonPath('meta.per_page', 1)
             ->assertJsonPath('meta.current_page', 2)
             ->assertJsonPath('meta.last_page', 2)

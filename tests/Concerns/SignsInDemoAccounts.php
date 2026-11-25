@@ -49,12 +49,12 @@ trait SignsInDemoAccounts
 
     protected function atlas(): Company
     {
-        return $this->company('Atlas Logistics');
+        return $this->company('Logística Atlas');
     }
 
     protected function cedar(): Company
     {
-        return $this->company('Cedar Catering');
+        return $this->company('Catering Cedro');
     }
 
     protected function card(string $number): FuelCard

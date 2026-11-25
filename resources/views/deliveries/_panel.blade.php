@@ -28,32 +28,32 @@
     <div class="col-lg-6">
         <div class="card h-100 shadow-sm">
             <div class="card-body">
-                <h2 class="h5">Order <span data-delivery-status="{{ $status->value }}">@include('partials.delivery-status-badge', ['status' => $status])</span></h2>
+                <h2 class="h5">Orden <span data-delivery-status="{{ $status->value }}">@include('partials.delivery-status-badge', ['status' => $status])</span></h2>
                 <dl class="row mb-0">
-                    <dt class="col-sm-5">Company</dt>
+                    <dt class="col-sm-5">Empresa</dt>
                     <dd class="col-sm-7">{{ $order->company->name }}</dd>
-                    <dt class="col-sm-5">Address</dt>
+                    <dt class="col-sm-5">Dirección</dt>
                     <dd class="col-sm-7">{{ $order->address }}</dd>
-                    <dt class="col-sm-5">Governorate</dt>
+                    <dt class="col-sm-5">Gobernación</dt>
                     <dd class="col-sm-7">{{ $order->governorate }}</dd>
-                    <dt class="col-sm-5">Diesel</dt>
-                    <dd class="col-sm-7">{{ Display::decimal($order->liters) }} L <span class="small text-body-secondary">(not charged to a fuel card)</span></dd>
-                    <dt class="col-sm-5">Preferred window</dt>
+                    <dt class="col-sm-5">Diésel</dt>
+                    <dd class="col-sm-7">{{ Display::decimal($order->liters) }} L <span class="small text-body-secondary">(no se cobra a una tarjeta de combustible)</span></dd>
+                    <dt class="col-sm-5">Ventana preferida</dt>
                     <dd class="col-sm-7">{{ $window($order->preferred_start_at, $order->preferred_end_at) }}</dd>
-                    <dt class="col-sm-5">Scheduled window</dt>
+                    <dt class="col-sm-5">Ventana programada</dt>
                     <dd class="col-sm-7">{{ $window($order->scheduled_start_at, $order->scheduled_end_at) }}</dd>
-                    <dt class="col-sm-5">Truck</dt>
+                    <dt class="col-sm-5">Camión</dt>
                     <dd class="col-sm-7">{{ $order->assigned_truck ?? '—' }}</dd>
                     @if ($order->delivered_at)
-                        <dt class="col-sm-5">Delivered at</dt>
+                        <dt class="col-sm-5">Entregado el</dt>
                         <dd class="col-sm-7">{{ Display::businessTime($order->delivered_at) }}</dd>
                     @endif
                     @if ($order->cancel_reason !== null)
-                        <dt class="col-sm-5">Cancellation reason</dt>
+                        <dt class="col-sm-5">Motivo de cancelación</dt>
                         <dd class="col-sm-7">{{ $order->cancel_reason }}</dd>
                     @endif
                 </dl>
-                <p class="small text-body-secondary mt-2 mb-0">Times are Beirut time.</p>
+                <p class="small text-body-secondary mt-2 mb-0">Los horarios son hora de Beirut.</p>
             </div>
         </div>
     </div>
@@ -67,7 +67,7 @@
                         <li class="d-flex gap-2 align-items-baseline mb-2">
                             @include('partials.delivery-status-badge', ['status' => $step->to_status])
                             <span>
-                                {{ $step->from_status === null ? 'Requested' : ucfirst($step->to_status->label()) }} by {{ $step->changedBy->name }}
+                                {{ $step->from_status === null ? 'Solicitada' : ucfirst($step->to_status->displayLabel()) }} por {{ $step->changedBy->name }}
                                 <span class="d-block small text-body-secondary">{{ Display::businessTime($step->changed_at) }}</span>
                             </span>
                         </li>
@@ -81,37 +81,37 @@
 @if ($advanceTo !== [] || $canCancel)
     <div class="card shadow-sm">
         <div class="card-body">
-            <h2 class="h5">Next step</h2>
+            <h2 class="h5">Siguiente paso</h2>
             <div class="row g-4">
                 @foreach ($advanceTo as $next)
                     <div class="col-lg-6">
                         <form method="POST" action="{{ route('deliveries.status', $order) }}" data-delivery-action
-                              @if ($next === DeliveryStatus::Delivered) data-delivery-confirm="Mark order #{{ $order->id }} as delivered? This is final." @endif>
+                              @if ($next === DeliveryStatus::Delivered) data-delivery-confirm="¿Marcar la orden #{{ $order->id }} como entregada? Esto es definitivo." @endif>
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="expected_status" value="{{ $status->value }}">
                             <input type="hidden" name="status" value="{{ $next->value }}">
 
                             @if ($next === DeliveryStatus::Scheduled)
-                                <h3 class="h6">Schedule</h3>
+                                <h3 class="h6">Programar</h3>
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <x-form.input type="datetime-local" name="scheduled_start_at" label="Window start" :min="$minLocal" required />
+                                        <x-form.input type="datetime-local" name="scheduled_start_at" label="Inicio de ventana" :min="$minLocal" required />
                                     </div>
                                     <div class="col-md-6">
-                                        <x-form.input type="datetime-local" name="scheduled_end_at" label="Window end" :min="$minLocal" required />
+                                        <x-form.input type="datetime-local" name="scheduled_end_at" label="Fin de ventana" :min="$minLocal" required />
                                     </div>
                                 </div>
-                                <x-form.input name="assigned_truck" label="Truck" maxlength="60" required help="For example TRK-04." />
-                                <button type="submit" class="btn btn-primary">Schedule delivery</button>
+                                <x-form.input name="assigned_truck" label="Camión" maxlength="60" required help="Por ejemplo TRK-04." />
+                                <button type="submit" class="btn btn-primary">Programar entrega</button>
                             @elseif ($next === DeliveryStatus::OutForDelivery)
-                                <h3 class="h6">Dispatch</h3>
-                                <p class="small text-body-secondary">Truck {{ $order->assigned_truck }} leaves with the diesel.</p>
-                                <button type="submit" class="btn btn-primary">Mark out for delivery</button>
+                                <h3 class="h6">Despachar</h3>
+                                <p class="small text-body-secondary">El camión {{ $order->assigned_truck }} sale con el diésel.</p>
+                                <button type="submit" class="btn btn-primary">Marcar en camino</button>
                             @else
-                                <h3 class="h6">Deliver</h3>
-                                <p class="small text-body-secondary">Records the delivery time as now. Delivered orders are final.</p>
-                                <button type="submit" class="btn btn-success">Mark delivered</button>
+                                <h3 class="h6">Entregar</h3>
+                                <p class="small text-body-secondary">Registra la hora de entrega como ahora. Las órdenes entregadas son definitivas.</p>
+                                <button type="submit" class="btn btn-success">Marcar entregada</button>
                             @endif
                         </form>
                     </div>
@@ -120,14 +120,14 @@
                 @if ($canCancel)
                     <div class="col-lg-6">
                         <form method="POST" action="{{ route('deliveries.status', $order) }}" data-delivery-action
-                              data-delivery-confirm="Cancel order #{{ $order->id }}? This is final.">
+                              data-delivery-confirm="¿Cancelar la orden #{{ $order->id }}? Esto es definitivo.">
                             @csrf
                             @method('PATCH')
                             <input type="hidden" name="expected_status" value="{{ $status->value }}">
                             <input type="hidden" name="status" value="{{ DeliveryStatus::Cancelled->value }}">
-                            <h3 class="h6">Cancel</h3>
-                            <x-form.input name="reason" label="Reason" maxlength="255" required />
-                            <button type="submit" class="btn btn-outline-danger">Cancel order</button>
+                            <h3 class="h6">Cancelar</h3>
+                            <x-form.input name="reason" label="Motivo" maxlength="255" required />
+                            <button type="submit" class="btn btn-outline-danger">Cancelar orden</button>
                         </form>
                     </div>
                 @endif
@@ -135,7 +135,7 @@
         </div>
     </div>
 @elseif ($status->isTerminal())
-    <p class="text-body-secondary">This order is {{ $status->label() }}. It is final and can no longer change.</p>
+    <p class="text-body-secondary">Esta orden está {{ $status->displayLabel() }}. Es definitiva y ya no puede cambiar.</p>
 @else
-    <p class="text-body-secondary">Distributor staff move the order along. It can no longer be cancelled here once scheduled; contact distributor staff instead.</p>
+    <p class="text-body-secondary">El personal del distribuidor avanza la orden. Ya no puede cancelarse aquí una vez programada; contacta al personal del distribuidor.</p>
 @endif

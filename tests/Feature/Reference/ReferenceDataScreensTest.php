@@ -109,21 +109,21 @@ class ReferenceDataScreensTest extends TestCase
 
     public function test_managers_and_operators_read_active_stations_only(): void
     {
-        $south = $this->station('South Demo Station');
+        $south = $this->station('Estación Demo Sur');
         $this->assertFalse($south->is_active);
 
         foreach ([$this->atlasManager(), $this->operator()] as $user) {
             $this->actingAs($user);
 
-            $stations = $this->get('/stations')->assertOk()->assertDontSee('South Demo Station')->assertDontSee('Add station')->viewData('stations');
+            $stations = $this->get('/stations')->assertOk()->assertDontSee('Estación Demo Sur')->assertDontSee('Add station')->viewData('stations');
             $this->assertCount(2, $stations);
 
-            $this->get(route('stations.edit', $this->station('Harbor Demo Station')))->assertForbidden();
-            $this->patch(route('stations.active', $this->station('Harbor Demo Station')), ['is_active' => '0'])->assertForbidden();
+            $this->get(route('stations.edit', $this->station('Estación Demo Puerto')))->assertForbidden();
+            $this->patch(route('stations.active', $this->station('Estación Demo Puerto')), ['is_active' => '0'])->assertForbidden();
             $this->post('/stations', ['name' => 'Rogue', 'district' => 'X', 'governorate' => 'Y'])->assertForbidden();
         }
 
-        $this->assertTrue($this->station('Harbor Demo Station')->is_active);
+        $this->assertTrue($this->station('Estación Demo Puerto')->is_active);
         $this->assertFalse(Station::query()->where('name', 'Rogue')->exists());
     }
 
@@ -155,7 +155,7 @@ class ReferenceDataScreensTest extends TestCase
         $this->actingAs($this->admin());
 
         $this->delete(route('companies.update', $this->atlas()))->assertStatus(405);
-        $this->delete(route('stations.update', $this->station('Harbor Demo Station')))->assertStatus(405);
+        $this->delete(route('stations.update', $this->station('Estación Demo Puerto')))->assertStatus(405);
         $this->delete(route('products.update', $this->product(ProductCode::Diesel)))->assertStatus(405);
     }
 

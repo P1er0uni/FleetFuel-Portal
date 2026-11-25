@@ -135,7 +135,7 @@ class WebLoginTest extends TestCase
             ->post('/login', ['email' => $user->email, 'password' => self::PASSWORD])
             ->assertRedirect('/login')
             ->assertSessionHasErrors('email');
-        $this->assertStringContainsString('Too many login attempts', session('errors')->first('email'));
+        $this->assertStringContainsString('Demasiados intentos de acceso', session('errors')->first('email'));
         $this->assertGuest();
 
         // The lock is per email + IP: another account signs in normally.
@@ -173,7 +173,7 @@ class WebLoginTest extends TestCase
         $this->startNewRequestCycle();
         $this->get('/dashboard')
             ->assertRedirect('/login')
-            ->assertSessionHas('status', 'Your account has been disabled. Contact an administrator.');
+            ->assertSessionHas('status', 'Tu cuenta ha sido desactivada. Contacta a un administrador.');
         $this->assertGuest();
     }
 
@@ -191,7 +191,7 @@ class WebLoginTest extends TestCase
         $this->startNewRequestCycle();
         $this->getJson('/transactions/results')
             ->assertUnauthorized()
-            ->assertExactJson(['message' => 'Your account has been disabled. Contact an administrator.']);
+            ->assertExactJson(['message' => 'Tu cuenta ha sido desactivada. Contacta a un administrador.']);
         $this->assertGuest();
     }
 

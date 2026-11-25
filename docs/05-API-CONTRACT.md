@@ -8,8 +8,8 @@ Send `Accept: application/json`; JSON writes also send `Content-Type: applicatio
 
 | Role | Allowed token abilities |
 | --- | --- |
-| Admin | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, deliveries:status, reports:read, exports:read |
-| Company manager | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, reports:read, exports:read |
+| Admin | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, deliveries:status, reports:read, exports:read, notifications:read, notifications:write |
+| Company manager | reference:read, transactions:read, cards:read, cards:write, fleet:read, fleet:write, deliveries:read, deliveries:write, reports:read, exports:read, notifications:read, notifications:write |
 | Station operator | reference:read, transactions:create, transactions:read, cards:read |
 
 Role/ownership policies run even if a token incorrectly has a wider ability. Reject cookies-only access to token API routes; use session-authorized web/AJAX routes for browser screens. DELETE token is available to any valid token.
@@ -54,6 +54,17 @@ For validation errors, details maps field names to arrays of messages. For other
 | PATCH `/delivery-orders/{id}/status` | Admin deliveries:status; own manager deliveries:write for pending→cancelled only | Order after validated transition |
 | GET `/reports/consumption` | reports:read; admin / own manager | Aggregated rows, group_by company/vehicle/product |
 | GET `/exports/transactions.csv` | exports:read; admin / own manager | Stream CSV attachment |
+| POST `/import/{type}` | fleet:write; admin / own manager | Bulk import from a CSV `file` or JSON `rows`; 200 with per-row errors |
+| GET `/import/templates/{type}` | fleet:read; admin / own manager | CSV template download |
+| GET `/notifications` | notifications:read; the caller's own inbox, filter by status/event_type | Paginated notifications |
+| GET `/notifications/unread-count` | notifications:read; caller's own | Unread count |
+| PATCH `/notifications/{id}/read` | notifications:write; caller's own | Notification, marked read |
+| POST `/notifications/mark-all-read` | notifications:write; caller's own | How many were marked read |
+| GET `/notifications/rules` | notifications:read; admin all, own manager | Paginated rules |
+| POST `/notifications/rules` | notifications:write; admin / own manager | 201 created rule |
+| GET `/notifications/rules/{id}` | notifications:read | One rule |
+| PUT `/notifications/rules/{id}` | notifications:write | The rule, updated |
+| DELETE `/notifications/rules/{id}` | notifications:write | 204 |
 
 Additional master-data writes and reports are served by web controllers in MVP; this API is intentionally finite. All routes above must be real and documented by M08. No undefined `v_vehicle_transactions` view from the research: report against the explicit ledger schema or create/test a view deliberately.
 
@@ -268,3 +279,35 @@ Columns in this order: transaction_id, external_ref, company, vehicle_plate, sta
   - rapid fills: less than 30 minutes after the vehicle's previous fill, including a previous fill just before the range; ties by ID;
   - efficiency estimate: km since the previous fill divided by liters, full to full, from recorded readings only, null with a reason otherwise;
   - delivery SLA: hours from the first history row to the delivered row, per governorate, for orders delivered in the range.
+
+## Fleets (fase 1)
+
+The fleet endpoints (`docs/sdd/fase-1-flotas/spec.md`) are live in `openapi.json` 0.11.0: `GET /fleets`, `POST /fleets`, `GET /fleets/{id}`, `PUT /fleets/{id}`, `DELETE /fleets/{id}`, `GET /fleets/{id}/usage` and the member lists `GET /fleets/{id}/vehicles`, `GET /fleets/{id}/drivers` and `GET /fleets/{id}/cards`. Details the sections above leave open:
+
+- **Scope.** Admin: every company, optionally `company_id` on the list. Manager: own company; `company_id` is 422. Another company's fleet is 404 (the `{fleet}` binding is tenant-scoped). Abilities: `fleet:read` / `fleet:write`; station operators have neither.
+- **Create and update.** The company is chosen by the server: an admin must send `company_id` (a JSON integer naming an active company), a manager must omit it. The name is unique within the company. `monthly_quota_liters` (at most 3 decimal places) and `monthly_quota_amount` (USD, at most 2) are optional; null means unlimited. The company never changes: `company_id` on update is 422, like every unknown field. An inactive company is 403 `company_inactive`.
+- **Detail.** `GET /fleets/{id}` adds the fleet's `rules` (ordered by type) and the current Beirut month's `usage`. `rule_value` is the stored JSON object: `{"ids": [...]}` for `allowed_products`/`allowed_stations`, `{"value": "..."}` for the numeric rules.
+- **Usage.** `GET /fleets/{id}/usage` returns the same `usage` object: the month's first day, the fleet's cards' summed `used_liters`/`used_usd` from the reconciled monthly counters, both quotas, the percentages (one decimal, null without a quota) and `exceeded`. An exceeded quota is a signal only; it never blocks a purchase.
+- **Delete.** `DELETE /fleets/{id}` is 204 with an empty body. The members' `fleet_id` becomes null (SET NULL); they keep working exactly as before. The audit log keeps the history.
+- **Member lists.** Vehicles by plate, drivers by name, cards by card number; paginated; unknown query parameters are 422.
+- **Reports.** `GET /reports/consumption` accepts `fleet_id`: only the purchases paid with that fleet's cards, on the cards' current `fleet_id` (D8). The fleet must belong to the filtered company (admin) or the caller's company (manager); anything else is 422. The web report header offers the same "Flota" filter on consumption, top stations, quota exceptions, anomalies and efficiency.
+
+## Bulk import (fase 2)
+
+The import endpoints (`docs/sdd/fase-2-importacion-notificaciones/spec.md`, Part A) are live in `openapi.json` 0.12.0: `POST /import/{type}` (type `vehicles`, `drivers` or `cards`) and `GET /import/templates/{type}`. Details:
+
+- **Body.** Either a multipart `file` (a CSV upload) or a JSON `rows` array (one object per record). `dry_run` validates without writing. An admin sends `company_id` (a JSON integer in a JSON body, a numeric form field in multipart); a manager must omit it. Unknown top-level fields are 422.
+- **Header.** The first CSV line must match the template exactly, or the whole file is 422 on `file`. Templates: vehicles `plate_no,fuel_type,tank_capacity_l,odometer_km,fleet_name`; drivers `name,phone,license_no,fleet_name`; cards `card_no,vehicle_plate,driver_license,monthly_limit_l,status,fleet_name`. `gasoline` is accepted as `petrol`; a card's `monthly_limit_usd` stays null (unlimited).
+- **Per row.** The same rules as the forms (normalized plate, decimals as strings, unique plate/license/card number, duplicates within the file and against the database). `fleet_name` resolves by `(company_id, name)`; empty is NULL and unknown is a row error. In cards, `vehicle_plate` and `driver_license` resolve within the company and are row errors when named and missing.
+- **Atomicity.** Each valid row is written in its own transaction; invalid rows are skipped with their error. Nothing rolls back as a whole (D4). Limits: 5000 rows and 5 MB (422).
+- **Result.** `{type, dry_run, total_rows, successful, failed, errors: [{row, field, message}]}`, where `row` counts data rows from 1. One `audit_logs` row (`import.completed`) records the whole import (D7).
+
+## Notifications (fase 2)
+
+The notification endpoints (`docs/sdd/fase-2-importacion-notificaciones/spec.md`, Part B) are live in `openapi.json` 0.12.0. Abilities: `notifications:read` / `notifications:write` (admin and company manager; the operator has neither).
+
+- **Inbox.** `GET /notifications` lists the caller's own in-app notifications, newest first, filterable by `status` (`read`/`unread`) and `event_type`, paginated. `GET /notifications/unread-count` returns `{unread_count}`. `PATCH /notifications/{id}/read` marks one read (another user's is 404); `POST /notifications/mark-all-read` returns `{marked_read}`.
+- **Rules.** `GET`/`POST /notifications/rules` and `GET`/`PUT`/`DELETE /notifications/rules/{id}` manage the rules. Admin: every company, optionally `company_id`; manager: own company only (another company's rule is 404 through the tenant-scoped binding). A rule sets `event_type`, `channel` (`in_app`/`email`/`log`) and an optional `fleet_id` of its company. `threshold_value`/`threshold_operator` (`gte`/`lte`/`eq`) apply only to `quota_warning`; sending a threshold for another event, or a value without an operator, is 422.
+- **Events.** Seven events fire from the services: `quota_exceeded`, `quota_warning`, `card_blocked`, `anomaly_detected` (rapid fill < 30 min, D9), `delivery_completed`, `delivery_cancelled`, `fleet_rule_violated`. The listener matches active rules by company/fleet/event, applies the threshold only to `quota_warning`, delivers through the rule's channel, and deduplicates the same `(rule, event, entity)` within one hour (D11).
+- **Delivery.** `in_app` creates one notification per active company manager; `email` sends a `NotificationMail` (array mailer in tests; real SMTP is a deployment step); `log` writes an `audit_logs` row (`notification.sent`) and a Laravel log entry.
+

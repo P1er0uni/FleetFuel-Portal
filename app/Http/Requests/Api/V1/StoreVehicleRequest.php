@@ -26,4 +26,19 @@ class StoreVehicleRequest extends WebStoreVehicleRequest
             'odometer_km' => ['nullable', 'integer:strict', 'min:0', 'max:9999999'],
         ];
     }
+
+    /**
+     * The API keeps the documented English messages (SetApiLocale).
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'company_id.required' => 'Choose a company.',
+            'company_id.exists' => 'Choose an active company.',
+            'company_id.prohibited' => 'The company is set from your account and cannot be chosen.',
+            'plate_no.regex' => 'Use letters, digits, spaces and hyphens only.',
+        ];
+    }
 }

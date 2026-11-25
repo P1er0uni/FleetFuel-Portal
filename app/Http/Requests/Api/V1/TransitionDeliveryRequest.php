@@ -29,6 +29,23 @@ class TransitionDeliveryRequest extends WebTransitionDeliveryRequest
     }
 
     /**
+     * The API keeps the documented English messages (SetApiLocale).
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'scheduled_start_at.prohibited' => 'A delivery window is only sent when scheduling.',
+            'scheduled_end_at.prohibited' => 'A delivery window is only sent when scheduling.',
+            'assigned_truck.prohibited' => 'A truck is only sent when scheduling.',
+            'reason.prohibited' => 'A reason is only sent when cancelling.',
+            'reason.required' => 'Give a reason for the cancellation.',
+            'assigned_truck.required' => 'Assign a truck.',
+        ];
+    }
+
+    /**
      * @return list<mixed>
      */
     protected function timeRules(): array

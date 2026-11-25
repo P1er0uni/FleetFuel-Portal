@@ -37,7 +37,7 @@ class CsrfProtectionTest extends TestCase
 
         // The 419 page explains what happened and offers to sign in again (M09 error pages).
         $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertStatus(419)
-            ->assertSee('Your session expired')->assertSee('Nothing was saved.')
+            ->assertSee('Tu sesión expiró')->assertSee('No se guardó nada.')
             ->assertSee('href="'.route('login').'"', false);
         $this->assertGuest();
     }

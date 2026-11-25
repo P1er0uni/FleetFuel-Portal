@@ -36,7 +36,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_a_manager_dashboard_counts_and_lists_only_their_company(): void
     {
-        $atlas = $this->company('Atlas Logistics');
+        $atlas = $this->company('Logística Atlas');
 
         $response = $this->actingAs($this->account('manager.atlas@fleetfuel.test'))->get('/dashboard')->assertOk();
 
@@ -56,7 +56,7 @@ class TenantIsolationTest extends TestCase
         );
         $this->assertNull($response->viewData('companies'));
 
-        $response->assertDontSee('Cedar Catering');
+        $response->assertDontSee('Catering Cedro');
         FuelTransaction::query()->where('company_id', '!=', $atlas->id)->pluck('id')
             ->each(fn (int $id) => $response->assertDontSee('href="'.route('transactions.show', $id).'"', false));
     }
@@ -74,7 +74,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_a_manager_cannot_open_another_companys_purchase_by_guessing_its_id(): void
     {
-        foreach (['manager.atlas@fleetfuel.test' => 'Atlas Logistics', 'manager.cedar@fleetfuel.test' => 'Cedar Catering'] as $email => $name) {
+        foreach (['manager.atlas@fleetfuel.test' => 'Logística Atlas', 'manager.cedar@fleetfuel.test' => 'Catering Cedro'] as $email => $name) {
             $company = $this->company($name);
             $own = FuelTransaction::query()->where('company_id', $company->id)->firstOrFail();
             $foreign = FuelTransaction::query()->where('company_id', '!=', $company->id)->firstOrFail();
@@ -90,7 +90,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_an_operator_sees_only_purchases_made_at_their_own_station(): void
     {
-        $harbor = Station::query()->where('name', 'Harbor Demo Station')->firstOrFail();
+        $harbor = Station::query()->where('name', 'Estación Demo Puerto')->firstOrFail();
 
         $response = $this->actingAs($this->account('operator.beirut@fleetfuel.test'))->get('/station')->assertOk();
 
@@ -111,7 +111,7 @@ class TenantIsolationTest extends TestCase
     {
         $this->actingAs($this->account('admin@fleetfuel.test'));
 
-        foreach (['Atlas Logistics', 'Cedar Catering'] as $name) {
+        foreach (['Logística Atlas', 'Catering Cedro'] as $name) {
             $transaction = FuelTransaction::query()->where('company_id', $this->company($name)->id)->firstOrFail();
             $this->get(route('transactions.show', $transaction->id))->assertOk()->assertSee($name);
         }
@@ -165,7 +165,7 @@ class TenantIsolationTest extends TestCase
 
     public function test_names_are_html_escaped(): void
     {
-        Station::query()->where('name', 'Harbor Demo Station')->firstOrFail()
+        Station::query()->where('name', 'Estación Demo Puerto')->firstOrFail()
             ->update(['name' => '<script>alert("x")</script>']);
 
         $this->actingAs($this->account('operator.beirut@fleetfuel.test'))

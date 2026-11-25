@@ -14,12 +14,14 @@ class UserRoleTest extends TestCase
             'reference:read', 'transactions:read', 'cards:read', 'cards:write',
             'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
             'deliveries:status', 'reports:read', 'exports:read',
+            'notifications:read', 'notifications:write',
         ], UserRole::Admin->tokenAbilities());
 
         $this->assertSame([
             'reference:read', 'transactions:read', 'cards:read', 'cards:write',
             'fleet:read', 'fleet:write', 'deliveries:read', 'deliveries:write',
             'reports:read', 'exports:read',
+            'notifications:read', 'notifications:write',
         ], UserRole::CompanyManager->tokenAbilities());
 
         $this->assertSame([
@@ -44,6 +46,6 @@ class UserRoleTest extends TestCase
         $this->assertSame('dashboard', UserRole::Admin->homeRoute());
         $this->assertSame('dashboard', UserRole::CompanyManager->homeRoute());
         $this->assertSame('station.home', UserRole::StationOperator->homeRoute());
-        $this->assertSame('Company manager', UserRole::CompanyManager->label());
+        $this->assertSame('Gerente de empresa', UserRole::CompanyManager->label());
     }
 }
