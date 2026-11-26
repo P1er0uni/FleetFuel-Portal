@@ -205,14 +205,17 @@ class FuelTransactionService
         $card->loadMissing(['company', 'vehicle', 'driver']);
         $this->ensureCardAccepts($card, $product);
 
-        // The card's fleet may restrict products, stations and per-day or
-        // per-transaction volumes (docs/sdd/fase-1-flotas/spec.md). A card
-        // without a fleet skips this. Still under the card lock.
-        $this->fleetRules->ensureAccepts($card, $station, $product, $purchase);
-
-        // Step 6: the price and rate in effect at the event time, from
-        // stored rows only (no HTTP inside the transaction).
+        // Step 6: the price and rate in effect at the event time, from stored
+        // rows only (no HTTP inside the transaction). Quoted before the fleet
+        // rules so amount limits can be checked (fase 5, D8).
         $quote = $this->prices->quote($product, $purchase->liters, $purchase->transactedAt, $mode);
+
+        // The card's fleet may restrict products, stations, volumes, amounts
+        // and hours (docs/sdd/fase-5-reglas-limites-flota/spec.md). A card
+        // without a fleet skips this. "warn" rules return warnings instead of
+        // blocking. Still under the card lock.
+        $warnings = $this->fleetRules->ensureAccepts($card, $station, $product, $purchase, $quote);
+
         $quotaMonth = BusinessMonth::for($purchase->transactedAt);
 
         // Lock order: card (held), then this month's counter, then the ledger insert.
@@ -260,6 +263,18 @@ class FuelTransactionService
         $usage->save();
 
         $this->dispatchPostPurchase($card, $purchase, $transaction, $usedL);
+
+        // "warn" fleet rules allow the purchase but notify the managers; the
+        // purchase transaction is committed together with these notification rows.
+        foreach ($warnings as $warning) {
+            event(new FleetRuleViolated(
+                (int) $card->id,
+                (int) $card->company_id,
+                $card->fleet_id,
+                (string) $warning['rule_type'],
+                'warn',
+            ));
+        }
 
         return $transaction;
     }

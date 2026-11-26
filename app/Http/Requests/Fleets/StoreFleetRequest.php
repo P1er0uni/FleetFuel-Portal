@@ -2,20 +2,26 @@
 
 namespace App\Http\Requests\Fleets;
 
+use App\Enums\FleetRuleType;
+use App\Enums\RuleEnforcement;
 use App\Http\Requests\Fleet\ResolvesCompany;
+use App\Http\Requests\Fleets\Concerns\ValidatesFleetRules;
 use App\Models\Fleet;
 use App\Rules\DecimalString;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
- * Create a fleet. The company is chosen by the server like every other
- * fleet member: an admin must pick an active company, a manager's own
- * company is used. The name is unique within that company.
+ * Create a fleet (Fase 1, D6) with an optional initial rule (Fase 5). The
+ * company is chosen by the server; the name is unique within it. When the
+ * "add_rule" box is ticked, the rule fields are validated like a normal rule
+ * and saved in the same transaction as the fleet.
  */
 class StoreFleetRequest extends FormRequest
 {
     use ResolvesCompany;
+    use ValidatesFleetRules;
 
     public function authorize(): bool
     {
@@ -27,7 +33,7 @@ class StoreFleetRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'company_id' => $this->companyRules(),
             'name' => ['required', 'string', 'max:100',
                 Rule::unique('fleets', 'name')->where('company_id', $this->targetCompanyId())],
@@ -35,7 +41,28 @@ class StoreFleetRequest extends FormRequest
             // DECIMAL(12,3) and DECIMAL(18,2); empty means unlimited.
             'monthly_quota_liters' => ['nullable', new DecimalString(9, 3)],
             'monthly_quota_amount' => ['nullable', new DecimalString(16)],
+            'add_rule' => ['nullable', 'boolean'],
         ];
+
+        if ($this->boolean('add_rule')) {
+            foreach ($this->ruleValidationRules() as $key => $value) {
+                $rules['rule.'.$key] = $value;
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if ($this->boolean('add_rule')) {
+                $this->validateRuleShape($validator, (array) $this->input('rule', []), 'rule.');
+            }
+        }];
     }
 
     /**
@@ -50,7 +77,7 @@ class StoreFleetRequest extends FormRequest
     }
 
     /**
-     * The validated attributes for FleetService::create().
+     * The validated attributes for FleetService::createWithRules().
      *
      * @return array{name: string, description: string|null, monthly_quota_liters: string|null, monthly_quota_amount: string|null}
      */
@@ -65,5 +92,19 @@ class StoreFleetRequest extends FormRequest
             'monthly_quota_liters' => $validated['monthly_quota_liters'] ?? null,
             'monthly_quota_amount' => $validated['monthly_quota_amount'] ?? null,
         ];
+    }
+
+    /**
+     * The initial rules to persist with the fleet (empty when not requested).
+     *
+     * @return list<array{type: FleetRuleType, value: array<string, mixed>, enforcement: RuleEnforcement, active: bool, valid_from: string|null, valid_to: string|null}>
+     */
+    public function rulesInput(): array
+    {
+        if (! $this->boolean('add_rule')) {
+            return [];
+        }
+
+        return [$this->attributesFromRule((array) $this->input('rule', []), defaultActive: true)];
     }
 }

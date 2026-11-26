@@ -3,19 +3,21 @@
 namespace App\Http\Requests\Fleets;
 
 use App\Enums\FleetRuleType;
+use App\Enums\RuleEnforcement;
+use App\Http\Requests\Fleets\Concerns\ValidatesFleetRules;
 use App\Models\Fleet;
-use App\Rules\DecimalString;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
- * Create or replace one of the fleet's rules. List rules (allowed_products,
- * allowed_stations) send `ids`, a list of active product or station IDs;
- * numeric rules send `value`, a decimal string. The request normalizes
- * both into the rule_value the service stores.
+ * Create or replace one of the fleet's rules (Fase 5). The type decides the
+ * fields: ids for list rules, value for numeric ones, windows for days/hours.
+ * It also carries the enforcement mode and an optional validity range.
  */
 class StoreFleetRuleRequest extends FormRequest
 {
+    use ValidatesFleetRules;
+
     public function authorize(): bool
     {
         $fleet = $this->route('fleet');
@@ -28,23 +30,15 @@ class StoreFleetRuleRequest extends FormRequest
      */
     public function rules(): array
     {
-        $type = FleetRuleType::tryFrom((string) $this->input('rule_type'));
+        return $this->ruleValidationRules();
+    }
 
-        return [
-            'rule_type' => ['required', Rule::enum(FleetRuleType::class)],
-            'active' => ['nullable', 'boolean'],
-            // List rules: which products or stations the fleet allows.
-            'ids' => ['required_if:rule_type,'.FleetRuleType::AllowedProducts->value.','.FleetRuleType::AllowedStations->value, 'array', 'max:100'],
-            'ids.*' => $type === FleetRuleType::AllowedProducts
-                ? ['integer', Rule::exists('products', 'id')->where('is_active', true)]
-                : ['integer', Rule::exists('stations', 'id')->where('is_active', true)],
-            // Numeric rules: the limit itself.
-            'value' => [
-                'required_unless:rule_type,'.FleetRuleType::AllowedProducts->value.','.FleetRuleType::AllowedStations->value,
-                'nullable',
-                new DecimalString(9),
-            ],
-        ];
+    /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [fn (Validator $validator) => $this->validateRuleShape($validator, $this->all())];
     }
 
     /**
@@ -54,34 +48,14 @@ class StoreFleetRuleRequest extends FormRequest
     {
         return [
             'rule_type.required' => 'Elige un tipo de regla.',
-            'ids.required_if' => 'Marca al menos un elemento permitido.',
-            'ids.*.exists' => 'Todos los elementos marcados deben existir y estar activos.',
-            'value.required_unless' => 'El valor del límite es obligatorio.',
         ];
     }
 
-    public function ruleType(): FleetRuleType
+    /**
+     * @return array{type: FleetRuleType, value: array<string, mixed>, enforcement: RuleEnforcement, active: bool, valid_from: string|null, valid_to: string|null}
+     */
+    public function ruleAttributes(): array
     {
-        return FleetRuleType::from((string) $this->validated('rule_type'));
-    }
-
-    /** @return array{ids?: list<int>, value?: string} */
-    public function ruleValue(): array
-    {
-        $validated = $this->validated();
-
-        if ($this->ruleType()->isListRule()) {
-            /** @var list<int> $ids */
-            $ids = array_values(array_map('intval', (array) ($validated['ids'] ?? [])));
-
-            return ['ids' => $ids];
-        }
-
-        return ['value' => (string) ($validated['value'] ?? '')];
-    }
-
-    public function active(): bool
-    {
-        return $this->boolean('active');
+        return $this->attributesFromRule($this->all(), defaultActive: false);
     }
 }

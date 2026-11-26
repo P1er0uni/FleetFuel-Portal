@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\FleetRuleType;
+use App\Enums\RuleEnforcement;
 use App\Models\Fleet;
 use App\Models\FleetRule;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,6 +22,9 @@ class FleetRuleFactory extends Factory
             'fleet_id' => Fleet::factory(),
             'rule_type' => FleetRuleType::MaxLitersPerTransaction,
             'rule_value' => ['value' => '100.00'],
+            'enforcement' => RuleEnforcement::Block,
+            'valid_from' => null,
+            'valid_to' => null,
             'active' => true,
         ];
     }
@@ -35,10 +39,30 @@ class FleetRuleFactory extends Factory
         return $this->state(['rule_type' => $type, 'rule_value' => ['ids' => $ids]]);
     }
 
-    /** A numeric rule (max_liters_per_transaction / max_transactions_per_day). */
+    /** A numeric rule (max liters/amount or transactions). */
     public function numeric(FleetRuleType $type, string $value): static
     {
         return $this->state(['rule_type' => $type, 'rule_value' => ['value' => $value]]);
+    }
+
+    /**
+     * A days/hours rule.
+     *
+     * @param  array<int, array{days: list<int>, start: string, end: string}>  $windows
+     */
+    public function windows(array $windows): static
+    {
+        return $this->state(['rule_type' => FleetRuleType::AllowedTimeWindows, 'rule_value' => ['windows' => $windows]]);
+    }
+
+    public function warning(): static
+    {
+        return $this->state(['enforcement' => RuleEnforcement::Warn]);
+    }
+
+    public function validBetween(string $from, string $to): static
+    {
+        return $this->state(['valid_from' => $from, 'valid_to' => $to]);
     }
 
     public function inactive(): static

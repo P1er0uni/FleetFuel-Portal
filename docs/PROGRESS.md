@@ -89,6 +89,42 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
+## Most recent session: reglas y límites de flota (fase 5 / área 2)
+
+**Date:** 2026-11-26.
+
+**Goal and actual state:**
+- Goal: spec `docs/sdd/fase-5-reglas-limites-flota/` — make fleet rules fully manageable (including **allowed stations** on create/edit), add block-vs-warn enforcement, validity ranges and new limits (liters/day, USD per transaction/day, days/hours).
+- Result: done; full suite green locally.
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan migrate` / fresh testing DB | new `fleet_rules` columns + widened `fleet_rules_type_check` applied |
+| `php artisan test tests/Feature/Fleets/FleetRuleLimitsTest.php tests/Feature/Fleets/FleetRuleEditorTest.php` | **12 passed / 25 assertions** |
+| `php artisan test tests/Feature/Pos tests/Feature/Notifications tests/Feature/Fleets` | 135 passed / 698 assertions |
+| `vendor/bin/pint` / `phpstan analyse` | passed / `[OK] No errors` |
+| `php artisan test` (full) | **737 passed / 7207 assertions** (232.00 s) |
+
+### What changed
+
+- **Data/enums:** `fleet_rules.enforcement` (block/warn) + `valid_from`/`valid_to`; `RuleEnforcement` enum; four new `FleetRuleType` cases; widened the type CHECK constraint; factory helpers.
+- **Service:** `FleetRuleService::ensureAccepts(..., PriceQuote)` evaluates all rule types (lists, per-transaction/day liters and USD, days/hours), filters by validity, and returns `warn` warnings or throws `FleetRuleViolation` for `block`.
+- **POS:** quotes the price before fleet rules (D8) and dispatches `FleetRuleViolated` with `enforcement=warn` for allowed purchases.
+- **Validation/UI:** `ValidatesFleetRules` trait; rules editor per type (products, stations, limits, days/hours) replacing the mixed multiselect; optional initial rule on fleet creation; enforcement and validity fields.
+- **Docs:** spec/plan/evidence in `docs/sdd/fase-5-reglas-limites-flota/`; `03-DATA-MODEL`, `CHANGELOG`, this file.
+
+### Not run or not verified
+
+- JS tests / Vite: only small inline scripts changed in the rules editor; CI runs them on push.
+- No browser walkthrough (feature tests cover the HTTP/editor flows).
+- Uncommitted on `fase-5-reglas-limites-flota`.
+
+**Suggested commit message:** `feat: add advanced fleet rules and limits`.
+
+**One concept to explain:** a rule has two independent settings — *what* it limits (products, stations, liters/day, USD, hours…) and *how hard* it acts (`block` stops the purchase, `warn` lets it through and only notifies). Keeping them separate means the same rule type can be strict for one fleet and advisory for another without duplicating logic, and validity dates let a rule exist but sleep outside its window.
+
 ## Most recent session: administración de usuarios (fase 4 / área 1)
 
 **Date:** 2026-11-26.

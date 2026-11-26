@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reglas y límites de flota, fase 5 / área 2 (`docs/sdd/fase-5-reglas-limites-flota/`):
+  - Fleet rules now have an **enforcement mode** (`block` rejects the purchase, `warn` allows it and notifies) and an optional **validity range** (`valid_from`/`valid_to`).
+  - New rule types: **max liters per day**, **max amount (USD) per transaction**, **max amount (USD) per day**, and **allowed days/hours** windows — alongside the existing allowed products/stations and per-transaction/daily limits.
+  - A clear rules editor (per-type fields: products list, stations list, numeric limit, days/hours) replaces the old single mixed multiselect, available when creating, editing and on the fleet detail; an optional initial rule can be set at creation.
+  - POS ingestion now quotes the price before applying fleet rules so amount limits can be evaluated; `warn` rules are delivered as `fleet_rule_violated` notifications without blocking.
 - Administración de usuarios, fase 4 / área 1 (`docs/sdd/fase-4-usuarios-admin/`):
   - New admin-only user management screens under **Administración → Usuarios**: list with search/filters (role, company, station, status), create, edit, change role/scope, activate/deactivate and reset a password. Manager and operator get 403; there is no delete route.
   - `UserAccountService` extended with `update`, `resetPassword`, `changeOwnPassword` and `revokeAccess`; changing a role/scope, deactivating or resetting a password revokes the affected user's tokens and sessions. Protections: an admin cannot deactivate themselves or leave the system without an active admin.

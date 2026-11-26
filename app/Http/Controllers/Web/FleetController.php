@@ -77,12 +77,13 @@ class FleetController extends Controller
             'fleet' => null,
             'companies' => $this->companyOptions($user, activeOnly: true),
             'ownCompany' => $user->isAdmin() ? null : $user->loadMissing('company')->company,
+            'ruleOptions' => $this->ruleOptions(),
         ]);
     }
 
     public function store(StoreFleetRequest $request, FleetService $fleets): RedirectResponse
     {
-        $fleet = $fleets->create($request->company(), $request->fleetAttributes(), $this->actor($request));
+        $fleet = $fleets->createWithRules($request->company(), $request->fleetAttributes(), $request->rulesInput(), $this->actor($request));
 
         return redirect()->route('fleets.show', $fleet)->with('status', "Flota {$fleet->name} creada.");
     }
@@ -152,6 +153,9 @@ class FleetController extends Controller
             'fleet' => $fleet->loadMissing('company'),
             'companies' => null,
             'ownCompany' => $fleet->company,
+            'ruleOptions' => $this->ruleOptions(),
+            'rules' => $fleet->rules()->orderBy('rule_type')->get(),
+            'canUpdate' => true,
         ]);
     }
 
@@ -181,7 +185,18 @@ class FleetController extends Controller
 
     public function storeRule(StoreFleetRuleRequest $request, Fleet $fleet, FleetRuleService $rules): RedirectResponse
     {
-        $rules->save($fleet, $request->ruleType(), $request->ruleValue(), $request->active(), $this->actor($request));
+        $rule = $request->ruleAttributes();
+
+        $rules->save(
+            $fleet,
+            $rule['type'],
+            $rule['value'],
+            $rule['active'],
+            $this->actor($request),
+            $rule['enforcement'],
+            $rule['valid_from'],
+            $rule['valid_to'],
+        );
 
         return redirect()->route('fleets.show', $fleet)->with('status', 'Regla guardada.');
     }
