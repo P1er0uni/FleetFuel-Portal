@@ -89,6 +89,42 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
+## Most recent session: administración de usuarios (fase 4 / área 1)
+
+**Date:** 2026-11-26.
+
+**Goal and actual state:**
+- Goal: spec `docs/sdd/fase-4-usuarios-admin/` (from `C:\Users\nunezpi\fleetfuel-sdd-prompts\fase-4-usuarios-admin.md`): **only the admin** can create and manage users from the web (previously only `users:*` CLI commands existed).
+- Result: done; the full suite is green locally.
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan migrate --force` | `add_must_change_password_to_users_table` DONE |
+| `php artisan test tests/Feature/Users` | **15 passed / 64 assertions** |
+| `vendor/bin/pint` / `phpstan analyse` | passed / `[OK] No errors` |
+| `php artisan test` (full) | **725 passed / 7182 assertions** (255.74 s) |
+
+### What changed
+
+- **Data:** `users.must_change_password` (boolean, default false); `User` cast; `UserFactory` value.
+- **Service:** `UserAccountService` gains `update`, `resetPassword`, `changeOwnPassword`, `revokeAccess`; create marks `must_change_password`; role/scope change, deactivation and reset revoke tokens and sessions; guards against self-deactivation and leaving no active admin.
+- **Auth:** `UserPolicy` (admin only); `RequirePasswordChange` middleware (alias `password.changed`) + `/password/change` screen.
+- **Web:** `Web\UserController`, Form Requests (Spanish), views `users/index` and `users/form`, "Usuarios" link in Administración. No delete route.
+- **Audit:** `user.updated`, `user.role_changed`, `user.password_reset`, `user.password_changed` (no passwords), plus existing created/activated/deactivated.
+- **Docs:** spec/plan/evidence under `docs/sdd/fase-4-usuarios-admin/`; `03-DATA-MODEL`, `CHANGELOG`, this file.
+
+### Not run or not verified
+
+- JS tests / Vite: only a small inline script in the user form changed; CI runs them on push.
+- No browser walkthrough of the new screens (covered by feature tests over real HTTP).
+- The phase is uncommitted on `fase-4-usuarios-admin`.
+
+**Suggested commit message:** `feat: add admin-only user management and forced password change`.
+
+**One concept to explain:** a temporary password is not a password — it is a hand-off. When an admin creates an account or resets one, the system stores a password the admin typed but marks `must_change_password`; a middleware then blocks every other page until the user sets their own. Sessions and API tokens are revoked at that moment, so a password the admin knows can never be used to keep a live session.
+
 ## Most recent session: mapa + favoritos + preferencias (fase 3)
 
 **Date:** 2026-11-25.

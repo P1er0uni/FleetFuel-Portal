@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuditLogController;
+use App\Http\Controllers\Web\ChangePasswordController;
 use App\Http\Controllers\Web\CompanyController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DeliveryOrderController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Web\StationController;
 use App\Http\Controllers\Web\StationHomeController;
 use App\Http\Controllers\Web\TransactionController;
 use App\Http\Controllers\Web\TransactionExportController;
+use App\Http\Controllers\Web\UserController;
 use App\Http\Controllers\Web\VehicleController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
@@ -45,7 +47,12 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 // signed-in user's tenant scope (AppServiceProvider), so another company's
 // record is a 404. There are no delete routes: records are deactivated or
 // archived, and the ledger keeps referring to them.
-Route::middleware(['auth', 'active'])->group(function () {
+Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
+    // Forced password change (available to every signed-in user; the
+    // password.changed middleware lets these two routes through).
+    Route::get('/password/change', [ChangePasswordController::class, 'edit'])->name('password.change.edit');
+    Route::put('/password/change', [ChangePasswordController::class, 'update'])->name('password.change.update');
+
     Route::get('/dashboard', DashboardController::class)
         ->middleware('role:admin,company_manager')
         ->name('dashboard');
@@ -98,6 +105,15 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Read-only audit trail with filters; nothing can edit or delete it.
         Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
+
+        // User administration (Fase 4): admin only. No delete route.
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+        Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::get('/users/{user}/edit', [UserController::class, 'edit'])->whereNumber('user')->name('users.edit');
+        Route::put('/users/{user}', [UserController::class, 'update'])->whereNumber('user')->name('users.update');
+        Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])->whereNumber('user')->name('users.status');
+        Route::post('/users/{user}/password', [UserController::class, 'resetPassword'])->whereNumber('user')->name('users.password');
     });
 
     // Fleet: admins for every company, managers for their own.
