@@ -139,7 +139,7 @@ Response first creation: 201, `Location: /api/v1/transactions/1`. Same key and e
 | 200 / 201 / 204 | Read/update/replay / creation / token revocation |
 | 400 | malformed_json |
 | 401 | unauthenticated, invalid_credentials |
-| 403 | forbidden, card_blocked, card_inactive, company_inactive, station_inactive, assignment_inactive, product_not_allowed, quota_exceeded |
+| 403 | forbidden, card_blocked, card_inactive, company_inactive, station_inactive, assignment_inactive, product_not_allowed, quota_exceeded, station_not_allowed |
 | 404 | not_found (also cross-tenant scoped records) |
 | 405 | method_not_allowed (known path, unsupported HTTP method) |
 | 409 | idempotency_conflict, stale_state, invalid_transition, assignment_locked |

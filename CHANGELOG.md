@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Estaciones habilitadas por empresa, fase 6 / área 3 (`docs/sdd/fase-6-estaciones-por-empresa/`):
+  - New `company_stations` table (company–station agreement) and `companies.restrict_stations` flag. By default a company may use any active station; when the restriction is on, only the enabled stations (an empty list blocks all).
+  - The POS now rejects purchases at a station not enabled for the card's company with **403 `station_not_allowed`** (checked after idempotent replay, before fleet rules). Fleet "allowed stations" rules still apply on top.
+  - Admin screen **"Estaciones habilitadas"** from the company page (switch + active-station checkboxes, readable summary); audited as `company.stations_changed`.
 - Reglas y límites de flota, fase 5 / área 2 (`docs/sdd/fase-5-reglas-limites-flota/`):
   - Fleet rules now have an **enforcement mode** (`block` rejects the purchase, `warn` allows it and notifies) and an optional **validity range** (`valid_from`/`valid_to`).
   - New rule types: **max liters per day**, **max amount (USD) per transaction**, **max amount (USD) per day**, and **allowed days/hours** windows — alongside the existing allowed products/stations and per-transaction/daily limits.

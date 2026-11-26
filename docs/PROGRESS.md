@@ -89,6 +89,41 @@ Optional, only on request:
 
 Use TODO / IN PROGRESS / DONE / BLOCKED. A milestone is DONE only when its checks pass. If an external prerequisite blocks one part, record exactly which part and finish independent local work.
 
+## Most recent session: estaciones habilitadas por empresa (fase 6 / área 3)
+
+**Date:** 2026-11-26.
+
+**Goal and actual state:**
+- Goal: spec `docs/sdd/fase-6-estaciones-por-empresa/` — the admin decides which stations each company may use; the POS rejects stations outside the list. Default is "all stations" so the current behaviour and data are untouched.
+- Result: done; full suite green locally.
+
+### Checks: exact command and actual outcome
+
+| Command | Outcome |
+| --- | --- |
+| `php artisan migrate` / testing DB | `companies.restrict_stations` + `company_stations` table |
+| `php artisan test tests/Feature/CompanyStations` | **10 passed / 25 assertions** |
+| `vendor/bin/pint` / `phpstan analyse` | passed / `[OK] No errors` |
+| `php artisan test` (full) | **747 passed / 7234 assertions** (247.00 s) |
+
+### What changed
+
+- **Data:** `companies.restrict_stations` (default false) and the `company_stations` agreement table; `Company::stations()` relation; `CompanyStation` model.
+- **Service:** `CompanyStationService` (`allowed`, `sync` with active-station validation and audit `company.stations_changed`).
+- **POS:** `FuelTransactionService` rejects a station not enabled for the card's company with `station_not_allowed` (after idempotent replay, before fleet rules).
+- **Web:** `CompanyStationController` + `UpdateCompanyStationsRequest` + `companies/stations` view (switch + active-station checkboxes + summary); link from the company edit page; admin only.
+- **Docs:** `03-DATA-MODEL` (table and ER diagram), `05-API-CONTRACT` (new error code), `CHANGELOG`, this file; spec/plan/evidence under `docs/sdd/fase-6-estaciones-por-empresa/`.
+
+### Not run or not verified
+
+- JS tests / Vite: only the company form gained a link; CI runs them.
+- Replay of an old purchase after restricting relies on the existing idempotency tests (the check sits after replay); not re-tested end-to-end through the API here.
+- Uncommitted on `fase-6-estaciones-por-empresa`.
+
+**Suggested commit message:** `feat: restrict stations per company with POS enforcement`.
+
+**One concept to explain:** a default that keeps the door open. `restrict_stations` starts false, so every existing company keeps working exactly as before and nothing has to be seeded. The moment an admin turns it on, the company's allowed stations become exactly the list they chose — and an empty list means none, which is a deliberate, readable way to stop a company refuelling without deleting anything.
+
 ## Most recent session: reglas y límites de flota (fase 5 / área 2)
 
 **Date:** 2026-11-26.

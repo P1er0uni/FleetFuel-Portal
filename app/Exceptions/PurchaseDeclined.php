@@ -34,6 +34,11 @@ class PurchaseDeclined extends ApiException
         return new self(403, 'company_inactive', "The card's company is inactive.");
     }
 
+    public static function stationNotAllowed(): self
+    {
+        return new self(403, 'station_not_allowed', "This station is not enabled for the card's company.");
+    }
+
     /** @param  'vehicle'|'driver'  $assignment */
     public static function assignmentInactive(string $assignment): self
     {

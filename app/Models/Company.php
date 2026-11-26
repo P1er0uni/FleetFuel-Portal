@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'tax_no'])]
@@ -20,6 +21,7 @@ class Company extends Model
     /** @var array<string, mixed> */
     protected $attributes = [
         'status' => 'active',
+        'restrict_stations' => false,
     ];
 
     /**
@@ -29,6 +31,7 @@ class Company extends Model
     {
         return [
             'status' => CompanyStatus::class,
+            'restrict_stations' => 'boolean',
         ];
     }
 
@@ -81,5 +84,16 @@ class Company extends Model
     public function deliveryOrders(): HasMany
     {
         return $this->hasMany(DeliveryOrder::class);
+    }
+
+    /**
+     * The stations this company is allowed to use (only meaningful when
+     * restrict_stations is true).
+     *
+     * @return BelongsToMany<Station, $this>
+     */
+    public function stations(): BelongsToMany
+    {
+        return $this->belongsToMany(Station::class, 'company_stations')->withTimestamps();
     }
 }
