@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\CompanyStatus;
+use App\Enums\FleetRuleType;
 use App\Enums\FleetStatus;
+use App\Enums\RuleEnforcement;
 use App\Exceptions\BusinessRuleViolation;
 use App\Models\Company;
 use App\Models\Driver;
@@ -26,7 +28,10 @@ use Illuminate\Validation\ValidationException;
  */
 class FleetService
 {
-    public function __construct(private readonly AuditService $audit) {}
+    public function __construct(
+        private readonly AuditService $audit,
+        private readonly FleetRuleService $rules,
+    ) {}
 
     /**
      * @param  array{name: string, description?: string|null, monthly_quota_liters?: string|null, monthly_quota_amount?: string|null}  $data
@@ -47,6 +52,35 @@ class FleetService
             ])->save();
 
             $this->audit->record('fleet.created', $fleet, $actor, $company->id, null, $this->quotaValues($fleet));
+
+            return $fleet;
+        });
+    }
+
+    /**
+     * Create the fleet and, optionally, its initial rules in one transaction
+     * (Fase 5, D6). If a rule is invalid nothing is created.
+     *
+     * @param  array{name: string, description?: string|null, monthly_quota_liters?: string|null, monthly_quota_amount?: string|null}  $data
+     * @param  list<array{type: FleetRuleType, value: array<string, mixed>, enforcement: RuleEnforcement, active: bool, valid_from: string|null, valid_to: string|null}>  $rules
+     */
+    public function createWithRules(Company $company, array $data, array $rules, User $actor): Fleet
+    {
+        return DB::transaction(function () use ($company, $data, $rules, $actor): Fleet {
+            $fleet = $this->create($company, $data, $actor);
+
+            foreach ($rules as $rule) {
+                $this->rules->save(
+                    $fleet,
+                    $rule['type'],
+                    $rule['value'],
+                    $rule['active'],
+                    $actor,
+                    $rule['enforcement'],
+                    $rule['valid_from'],
+                    $rule['valid_to'],
+                );
+            }
 
             return $fleet;
         });

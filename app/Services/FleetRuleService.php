@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\CompanyStatus;
 use App\Enums\FleetRuleType;
+use App\Enums\RuleEnforcement;
 use App\Exceptions\BusinessRuleViolation;
 use App\Exceptions\FleetRuleViolation;
 use App\Models\Company;
@@ -15,67 +16,117 @@ use App\Models\Product;
 use App\Models\Station;
 use App\Models\User;
 use App\Support\PosPurchase;
+use App\Support\PriceQuote;
 use Brick\Math\BigDecimal;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * A fleet's rules: CRUD for the admin screens, and the read-only check the
- * POS ingestion runs inside the card-lock transaction before a purchase is
- * priced and charged (docs/sdd/fase-1-flotas/spec.md, rules 4-7).
+ * A fleet's rules: CRUD for the admin screens, and the read-only check the POS
+ * ingestion runs inside the card-lock transaction before a purchase is charged
+ * (docs/sdd/fase-5-reglas-limites-flota/spec.md).
  *
- * A rule violation is a ValidationException (HTTP 422 in the API, a flash
- * error on the web), never a business decline: the card, the station and
- * the product are all fine; the fleet's policy just refuses this purchase.
+ * A broken rule either blocks the purchase (throws FleetRuleViolation, 422) or
+ * only warns (returns an entry the caller turns into a notification). Rules
+ * outside their validity dates are ignored.
  */
 class FleetRuleService
 {
     public function __construct(private readonly AuditService $audit) {}
 
     /**
-     * Called by FuelTransactionService::record() after the card's own
-     * checks, with the card row lock held. A card without a fleet, or a
-     * fleet without active rules, changes nothing.
+     * @return list<array{rule_type: string, message: string, enforcement: string}>
      */
-    public function ensureAccepts(FuelCard $card, Station $station, Product $product, PosPurchase $purchase): void
+    public function ensureAccepts(FuelCard $card, Station $station, Product $product, PosPurchase $purchase, PriceQuote $quote): array
     {
         if ($card->fleet_id === null) {
-            return;
+            return [];
         }
+
+        $timezone = (string) config('fleetfuel.business_timezone');
+        $localDate = $purchase->transactedAt->setTimezone($timezone)->toDateString();
 
         $rules = FleetRule::query()
             ->where('fleet_id', $card->fleet_id)
             ->where('active', true)
             ->get()
-            ->keyBy(fn (FleetRule $rule): string => $rule->rule_type->value);
+            ->filter(fn (FleetRule $rule): bool => $this->withinValidity($rule, $localDate))
+            ->values();
 
-        $this->ensureProductAllowed($rules->get(FleetRuleType::AllowedProducts->value), $product, $card);
-        $this->ensureStationAllowed($rules->get(FleetRuleType::AllowedStations->value), $station, $card);
-        $this->ensureWithinTransactionLiters($rules->get(FleetRuleType::MaxLitersPerTransaction->value), $purchase, $card);
-        $this->ensureWithinDailyTransactions($rules->get(FleetRuleType::MaxTransactionsPerDay->value), $card, $purchase);
+        $dayTotals = $this->needsDayTotals($rules)
+            ? $this->dayTotals($card, $purchase, $timezone)
+            : ['count' => 0, 'liters' => '0', 'usd' => '0'];
+
+        $warnings = [];
+
+        foreach ($rules as $rule) {
+            $violation = $this->evaluate($rule, $card, $station, $product, $purchase, $quote, $dayTotals, $timezone);
+
+            if ($violation === null) {
+                continue;
+            }
+
+            if ($rule->enforcement === RuleEnforcement::Warn) {
+                $warnings[] = [
+                    'rule_type' => $rule->rule_type->value,
+                    'message' => $violation['message'],
+                    'enforcement' => 'warn',
+                ];
+
+                continue;
+            }
+
+            throw FleetRuleViolation::forRule(
+                $violation['field'],
+                $violation['message'],
+                (int) $card->company_id,
+                $card->fleet_id,
+                (int) $card->id,
+                $rule->rule_type->value,
+            );
+        }
+
+        return $warnings;
     }
 
     /**
      * Create or replace the fleet's rule of one type (the unique key allows
-     * one rule per type). $value is ['ids' => list] for list rules and
-     * ['value' => string] for numeric ones, already validated by the Form
-     * Request.
+     * one rule per type). $value is ['ids' => list] for list rules,
+     * ['value' => string] for numeric ones and ['windows' => list] for schedules.
      *
-     * @param  array{ids?: list<int>, value?: string}  $value
+     * @param  array{ids?: list<int>, value?: string, windows?: list<array{days: list<int>, start: string, end: string}>}  $value
      */
-    public function save(Fleet $fleet, FleetRuleType $type, array $value, bool $active, User $actor): FleetRule
-    {
-        return DB::transaction(function () use ($fleet, $type, $value, $active, $actor): FleetRule {
+    public function save(
+        Fleet $fleet,
+        FleetRuleType $type,
+        array $value,
+        bool $active,
+        User $actor,
+        RuleEnforcement $enforcement = RuleEnforcement::Block,
+        ?string $validFrom = null,
+        ?string $validTo = null,
+    ): FleetRule {
+        return DB::transaction(function () use ($fleet, $type, $value, $active, $actor, $enforcement, $validFrom, $validTo): FleetRule {
             $fleet = Fleet::query()->lockForUpdate()->findOrFail($fleet->id);
             $this->ensureCompanyActive($fleet);
 
             $rule = FleetRule::query()->updateOrCreate(
                 ['fleet_id' => $fleet->id, 'rule_type' => $type],
-                ['rule_value' => $value, 'active' => $active],
+                [
+                    'rule_value' => $value,
+                    'enforcement' => $enforcement,
+                    'valid_from' => $validFrom,
+                    'valid_to' => $validTo,
+                    'active' => $active,
+                ],
             );
 
             $this->audit->record('fleet.rules_changed', $fleet, $actor, $fleet->company_id, null, [
                 'rule_type' => $type->value,
                 'rule_value' => $value,
+                'enforcement' => $enforcement->value,
+                'valid_from' => $validFrom,
+                'valid_to' => $validTo,
                 'active' => $active,
             ]);
 
@@ -99,60 +150,122 @@ class FleetRuleService
         });
     }
 
-    private function ensureProductAllowed(?FleetRule $rule, Product $product, FuelCard $card): void
-    {
-        if ($rule !== null && ! in_array($product->id, $rule->rule_value['ids'] ?? [], true)) {
-            throw $this->violation('product_code', 'Product not allowed for this fleet.', $card, FleetRuleType::AllowedProducts);
-        }
+    /**
+     * @param  array{count: int, liters: string, usd: string}  $dayTotals
+     * @return array{field: string, message: string}|null
+     */
+    private function evaluate(
+        FleetRule $rule,
+        FuelCard $card,
+        Station $station,
+        Product $product,
+        PosPurchase $purchase,
+        PriceQuote $quote,
+        array $dayTotals,
+        string $timezone,
+    ): ?array {
+        $value = (string) ($rule->rule_value['value'] ?? '0');
+
+        return match ($rule->rule_type) {
+            FleetRuleType::AllowedProducts => in_array($product->id, $rule->rule_value['ids'] ?? [], true)
+                ? null
+                : ['field' => 'product_code', 'message' => 'Product not allowed for this fleet.'],
+
+            FleetRuleType::AllowedStations => in_array($station->id, $rule->rule_value['ids'] ?? [], true)
+                ? null
+                : ['field' => 'station', 'message' => 'This station is not allowed for this fleet.'],
+
+            FleetRuleType::MaxLitersPerTransaction => BigDecimal::of($purchase->liters)->isGreaterThan($value)
+                ? ['field' => 'liters', 'message' => "This purchase exceeds the fleet's per-transaction limit of {$value} L."]
+                : null,
+
+            FleetRuleType::MaxTransactionsPerDay => $dayTotals['count'] >= (int) BigDecimal::of($value)->toInt()
+                ? ['field' => 'liters', 'message' => 'This card reached the fleet\'s daily limit of '.$value.' transactions.']
+                : null,
+
+            FleetRuleType::MaxLitersPerDay => BigDecimal::of($dayTotals['liters'])->plus($quote->liters)->isGreaterThan($value)
+                ? ['field' => 'liters', 'message' => "This purchase exceeds the fleet's daily limit of {$value} L."]
+                : null,
+
+            FleetRuleType::MaxAmountPerTransactionUsd => BigDecimal::of($quote->amountUsd)->isGreaterThan($value)
+                ? ['field' => 'amount', 'message' => "This purchase exceeds the fleet's per-transaction limit of {$value} USD."]
+                : null,
+
+            FleetRuleType::MaxAmountPerDayUsd => BigDecimal::of($dayTotals['usd'])->plus($quote->amountUsd)->isGreaterThan($value)
+                ? ['field' => 'amount', 'message' => "This purchase exceeds the fleet's daily limit of {$value} USD."]
+                : null,
+
+            FleetRuleType::AllowedTimeWindows => $this->withinTimeWindows($rule, $purchase, $timezone)
+                ? null
+                : ['field' => 'schedule', 'message' => 'This purchase is outside the fleet\'s allowed days and hours.'],
+        };
     }
 
-    private function ensureStationAllowed(?FleetRule $rule, Station $station, FuelCard $card): void
+    private function withinTimeWindows(FleetRule $rule, PosPurchase $purchase, string $timezone): bool
     {
-        if ($rule !== null && ! in_array($station->id, $rule->rule_value['ids'] ?? [], true)) {
-            throw $this->violation('station', 'This station is not allowed for this fleet.', $card, FleetRuleType::AllowedStations);
+        $local = $purchase->transactedAt->setTimezone($timezone);
+        $weekday = $local->isoWeekday();
+        $time = $local->format('H:i');
+
+        foreach ((array) ($rule->rule_value['windows'] ?? []) as $window) {
+            $days = array_map('intval', (array) ($window['days'] ?? []));
+            $start = (string) ($window['start'] ?? '');
+            $end = (string) ($window['end'] ?? '');
+
+            if (in_array($weekday, $days, true) && $time >= $start && $time < $end) {
+                return true;
+            }
         }
+
+        return false;
     }
 
-    private function ensureWithinTransactionLiters(?FleetRule $rule, PosPurchase $purchase, FuelCard $card): void
+    private function withinValidity(FleetRule $rule, string $localDate): bool
     {
-        if ($rule === null) {
-            return;
+        if ($rule->valid_from !== null && $localDate < $rule->valid_from->toDateString()) {
+            return false;
         }
 
-        $limit = (string) ($rule->rule_value['value'] ?? '0');
-
-        if (BigDecimal::of($purchase->liters)->isGreaterThan($limit)) {
-            throw $this->violation('liters', "This purchase exceeds the fleet's per-transaction limit of {$limit} L.", $card, FleetRuleType::MaxLitersPerTransaction);
+        if ($rule->valid_to !== null && $localDate > $rule->valid_to->toDateString()) {
+            return false;
         }
+
+        return true;
     }
 
-    private function ensureWithinDailyTransactions(?FleetRule $rule, FuelCard $card, PosPurchase $purchase): void
+    /**
+     * @param  Collection<int, FleetRule>  $rules
+     */
+    private function needsDayTotals(Collection $rules): bool
     {
-        if ($rule === null) {
-            return;
-        }
+        return $rules->contains(fn (FleetRule $rule): bool => in_array($rule->rule_type, [
+            FleetRuleType::MaxTransactionsPerDay,
+            FleetRuleType::MaxLitersPerDay,
+            FleetRuleType::MaxAmountPerDayUsd,
+        ], true));
+    }
 
-        $limit = (int) BigDecimal::of((string) ($rule->rule_value['value'] ?? '0'))->toInt();
-
-        // The Beirut calendar day of the event, so a late event from
-        // yesterday counts against yesterday, like the quota month does.
-        $timezone = (string) config('fleetfuel.business_timezone');
+    /**
+     * @return array{count: int, liters: string, usd: string}
+     */
+    private function dayTotals(FuelCard $card, PosPurchase $purchase, string $timezone): array
+    {
         $dayStart = $purchase->transactedAt->setTimezone($timezone)->startOfDay()->utc();
+        $dayEnd = $dayStart->addDay();
 
-        $already = FuelTransaction::query()
+        $row = FuelTransaction::query()
             ->where('fuel_card_id', $card->id)
             ->where('transacted_at', '>=', $dayStart)
-            ->where('transacted_at', '<', $dayStart->addDay())
-            ->count();
+            ->where('transacted_at', '<', $dayEnd)
+            ->toBase()
+            ->selectRaw('COUNT(*) AS purchases, COALESCE(SUM(liters), 0) AS liters, COALESCE(SUM(amount_usd), 0) AS usd')
+            ->first();
 
-        if ($already >= $limit) {
-            throw $this->violation('liters', "This card reached the fleet's daily limit of {$limit} transactions.", $card, FleetRuleType::MaxTransactionsPerDay);
-        }
-    }
-
-    private function violation(string $field, string $message, FuelCard $card, FleetRuleType $type): FleetRuleViolation
-    {
-        return FleetRuleViolation::forRule($field, $message, (int) $card->company_id, $card->fleet_id, (int) $card->id, $type->value);
+        return [
+            'count' => (int) ($row->purchases ?? 0),
+            'liters' => (string) ($row->liters ?? '0'),
+            'usd' => (string) ($row->usd ?? '0'),
+        ];
     }
 
     private function ensureCompanyActive(Fleet $fleet): void
