@@ -39,6 +39,7 @@
                 'Administración' => [
                     $navUser->can('viewAny', App\Models\ExchangeRate::class) ? ['integrations.exchange-rates', 'Tasas de cambio', 'integrations.*'] : null,
                     $navUser->can('useNotifications') ? ['notifications.rules.index', 'Reglas de notificación', 'notifications.rules.*'] : null,
+                    $navUser->can('viewAny', App\Models\User::class) ? ['users.index', 'Usuarios', 'users.*'] : null,
                     $navUser->can('viewAny', App\Models\AuditLog::class) ? ['audit.index', 'Auditoría', 'audit.*'] : null,
                 ],
             ]));

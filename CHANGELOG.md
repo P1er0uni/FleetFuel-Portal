@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Administración de usuarios, fase 4 / área 1 (`docs/sdd/fase-4-usuarios-admin/`):
+  - New admin-only user management screens under **Administración → Usuarios**: list with search/filters (role, company, station, status), create, edit, change role/scope, activate/deactivate and reset a password. Manager and operator get 403; there is no delete route.
+  - `UserAccountService` extended with `update`, `resetPassword`, `changeOwnPassword` and `revokeAccess`; changing a role/scope, deactivating or resetting a password revokes the affected user's tokens and sessions. Protections: an admin cannot deactivate themselves or leave the system without an active admin.
+  - New `users.must_change_password` column: a temporary password (on create or reset) forces a change on next sign-in via a new `RequirePasswordChange` middleware and `/password/change` screen.
+  - New audit actions `user.updated`, `user.role_changed`, `user.password_reset`, `user.password_changed`, with sessions; passwords are never audited.
+  - `UserPolicy` restricts all user management to active admins.
 - Mapa, favoritos y preferencias, fase 3 (`docs/sdd/fase-3-mapa-favoritos-preferencias/`):
   - **Interactive station map.** `GET /api/v1/map/stations` (ability `map:read`) returns stations with coordinates, composed address, status, the products sold there and the day's transactions/liters/last fill (Beirut calendar). The `/map` page renders Leaflet + markercluster (CDN) with a filter panel and a "stations without location" section; link in the menu and on the dashboard.
   - **Favorites.** New `user_favorites` table; `GET`/`POST /favorites`, `PUT /favorites/reorder`, `DELETE /favorites/{id}` for every role, with scope checks (a foreign entity is 404, a duplicate 422). Star toggle on fleet and vehicle pages; reorderable favorites panel on the dashboard.

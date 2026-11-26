@@ -38,6 +38,7 @@ class UserFactory extends Factory
             'company_id' => Company::factory(),
             'station_id' => null,
             'is_active' => true,
+            'must_change_password' => false,
         ];
     }
 

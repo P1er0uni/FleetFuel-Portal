@@ -57,7 +57,7 @@ Same-company rules are enforced by composite foreign keys, not only by validatio
 | --- | --- |
 | `companies` | `name varchar(120)`, nullable `tax_no varchar(50)` unique if provided, `status varchar(20)` active/inactive |
 | `stations` | `name varchar(120)`, `district varchar(80)`, `governorate varchar(80)`, nullable `latitude decimal(10,7)`, nullable `longitude decimal(10,7)`, `is_active boolean` |
-| `users` | Laravel auth fields, unique `email`, `role varchar(30)`, nullable `company_id FK`, nullable `station_id FK`, `is_active boolean`; manager requires company only, operator station only, admin neither |
+| `users` | Laravel auth fields, unique `email`, `role varchar(30)`, nullable `company_id FK`, nullable `station_id FK`, `is_active boolean`, `must_change_password boolean` (temporary password set by an admin); manager requires company only, operator station only, admin neither |
 | `products` | unique `code varchar(20)` ULP95/ULP98/DIESEL, `name varchar(80)`, `fuel_type varchar(20)` petrol/diesel, `unit varchar(10)` L, `is_active boolean` |
 | `vehicles` | `company_id FK`, nullable `fleet_id FK` (SET NULL), unique `plate_no varchar(30)`, `fuel_type varchar(20)` petrol/diesel, `tank_capacity_l decimal(10,2)` positive, nullable `odometer_km bigint` nonnegative, `is_active boolean` |
 | `drivers` | `company_id FK`, nullable `fleet_id FK` (SET NULL), `name varchar(120)`, nullable `phone varchar(30)`, `license_no varchar(50)`, `is_active boolean`; unique `(company_id, license_no)` |

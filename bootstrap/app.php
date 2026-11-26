@@ -8,6 +8,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\RejectMalformedJson;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Http\Middleware\SetApiLocale;
 use App\Models\User;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Sanctum token abilities: 'abilities' needs all, 'ability' any one.
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
+            'password.changed' => RequirePasswordChange::class,
         ]);
 
         $middleware->api(prepend: [SetApiLocale::class, RejectMalformedJson::class]);
