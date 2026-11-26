@@ -50,6 +50,7 @@ final class AuditDisplay
         'product_price.published' => 'Precio de producto publicado',
         'company.activated' => 'Empresa activada',
         'company.deactivated' => 'Empresa desactivada',
+        'company.stations_changed' => 'Estaciones habilitadas de la empresa cambiadas',
         'station.activated' => 'Estación activada',
         'station.deactivated' => 'Estación desactivada',
         'product.activated' => 'Producto activado',

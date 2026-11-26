@@ -62,6 +62,7 @@ class FuelTransactionService
     public function __construct(
         private readonly PriceResolver $prices,
         private readonly FleetRuleService $fleetRules,
+        private readonly CompanyStationService $companyStations,
     ) {}
 
     /**
@@ -204,6 +205,12 @@ class FuelTransactionService
     ): FuelTransaction {
         $card->loadMissing(['company', 'vehicle', 'driver']);
         $this->ensureCardAccepts($card, $product);
+
+        // Company-wide station enablement (fase 6, área 3). A company without
+        // the restriction may use any active station.
+        if (! $this->companyStations->allowed($card->company, $station)) {
+            throw PurchaseDeclined::stationNotAllowed();
+        }
 
         // Step 6: the price and rate in effect at the event time, from stored
         // rows only (no HTTP inside the transaction). Quoted before the fleet

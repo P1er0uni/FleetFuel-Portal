@@ -29,6 +29,14 @@
                 <div class="card card-body shadow-sm">
                     <h2 class="h5">Estado @include('partials.active-badge', ['active' => $active])</h2>
                     <p class="mb-2">{{ $company->vehicles_count }} vehículos · {{ $company->drivers_count }} conductores · {{ $company->fuel_cards_count }} tarjetas</p>
+                    <p class="mb-2">
+                        <a href="{{ route('companies.stations.edit', $company) }}">Estaciones habilitadas</a>:
+                        @if ($company->restrict_stations)
+                            <span class="badge text-bg-warning">Restringidas ({{ $company->stations()->count() }})</span>
+                        @else
+                            <span class="badge text-bg-success">Todas</span>
+                        @endif
+                    </p>
                     <p class="small text-body-secondary">
                         Las empresas nunca se eliminan. Una empresa inactiva conserva todos sus datos e historial, y su flota
                         pasa a ser de solo lectura: las tarjetas aún pueden bloquearse o archivarse, y los vehículos o conductores desactivarse.

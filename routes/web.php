@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\AuditLogController;
 use App\Http\Controllers\Web\ChangePasswordController;
 use App\Http\Controllers\Web\CompanyController;
+use App\Http\Controllers\Web\CompanyStationController;
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\DeliveryOrderController;
 use App\Http\Controllers\Web\DriverController;
@@ -90,6 +91,12 @@ Route::middleware(['auth', 'active', 'password.changed'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::resource('companies', CompanyController::class)->except(['show', 'destroy']);
         Route::patch('/companies/{company}/status', [CompanyController::class, 'updateStatus'])->name('companies.status');
+
+        // Which stations a company may use (Fase 6, área 3): admin only.
+        Route::get('/companies/{company}/stations', [CompanyStationController::class, 'edit'])
+            ->whereNumber('company')->name('companies.stations.edit');
+        Route::put('/companies/{company}/stations', [CompanyStationController::class, 'update'])
+            ->whereNumber('company')->name('companies.stations.update');
 
         Route::resource('stations', StationController::class)->except(['index', 'show', 'destroy']);
         Route::patch('/stations/{station}/active', [StationController::class, 'updateActive'])->name('stations.active');

@@ -20,6 +20,7 @@ class CompanyFactory extends Factory
             'name' => fake()->unique()->company(),
             'tax_no' => fake()->unique()->bothify('LB-TEST-#####'),
             'status' => CompanyStatus::Active,
+            'restrict_stations' => false,
         ];
     }
 
